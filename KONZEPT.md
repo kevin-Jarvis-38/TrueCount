@@ -91,6 +91,10 @@ Diese Datei ist der feste Stand, den der Nutzer und Claude gemeinsam festgelegt 
   Je besser der Tisch, desto schicker werden sie.
 - Der Dealer ist (Vorschlag) ein Pinguin im Frack.
 
+## Design
+- Am 2026-10-23 gewählt: **Entwurf A „Comic-Klassik“** (`entwuerfe/a.html`). Das heißt dicke schwarze Linien, harte Schatten,
+  Holz-Hinterzimmer, Schrift Luckiest Guy und Knöpfe mit „Klick-Kante“. Später kann noch alles angepasst werden.
+
 ## Ton
 - Karten, Chips, Gemurmel, Spielautomaten im Hintergrund und Gewinn-Fanfaren dürfen ruhig übertrieben sein.
   Alles ist einzeln regelbar und abschaltbar. Es werden nur frei verwendbare Geräusche genommen.
