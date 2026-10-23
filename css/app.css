@@ -98,5 +98,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Optionen */
 .opt { display: grid; grid-template-columns: 1fr 48px 92px 48px; align-items: center; gap: 8px; margin: 0 0 10px; }
 .opt span { font: 600 15px system-ui, sans-serif; }
+.opt span small { font-size: 12px; opacity: .6; }
 .opt b { text-align: center; font-size: 20px; }
 .opt .btn { min-height: 44px; font-size: 22px; }

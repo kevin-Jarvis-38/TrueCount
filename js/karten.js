@@ -5,6 +5,9 @@ export const FARBEN = ['♠', '♥', '♦', '♣'];
 // Punktwert einer Karte: Ass 11, Bilder 10
 export const punkte = r => r === 'A' ? 11 : isNaN(r) ? 10 : +r;
 
+// Zählwert nach Hi-Lo: 2–6 +1, 7–9 0, 10er und Ass −1
+export const hiLo = r => punkte(r) <= 6 ? 1 : punkte(r) >= 10 ? -1 : 0;
+
 // Wert einer Hand. soft = ein Ass zählt noch als 11.
 export function wert(karten) {
   let summe = 0, asse = 0;

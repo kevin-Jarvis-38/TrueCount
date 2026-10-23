@@ -1,6 +1,6 @@
 // TrueCount – Tisch-Szene im Stil „Comic-Klassik“ (Entwurf A): zeichnet den Spielstand als SVG.
 // Figuren und Formen stammen aus entwuerfe/szene.js.
-import { wert } from './karten.js';
+import { wert, hiLo } from './karten.js';
 import { istBJ } from './tisch.js';
 
 const INK = '#1a1a1a', THIN = 2, FONT = "'Luckiest Guy'";
@@ -106,14 +106,17 @@ const bubble = (t, links) => `<g transform="translate(${links ? -30 : 30},-44) r
 // Neue Karten fliegen aus dem Schuh herein. Die Uhrzeit merkt sich, wann eine Karte zum ersten Mal gezeichnet wurde,
 // damit ein zweites Zeichnen kurz danach die Flug-Animation nicht abbricht.
 const gesehen = new Map(), FLUG = 260;
-let quelle = [0, 0];
+let quelle = [0, 0], zaehlwerte = true;
+// Marke links unter der Ecke mit dem Hi-Lo-Wert. Der linke Streifen bleibt sichtbar, wenn die nächste Karte darüber liegt.
+const ZW = { 1: ['+1', '#2a9d5c'], 0: ['0', '#8d99ae'], '-1': ['−1', '#e63946'] };
+const zaehlMarke = r => { const [t, f] = ZW[hiLo(r)]; return `<circle cx="${-CW / 2 + 8}" cy="9" r="7.5" fill="${f}" stroke="${INK}" stroke-width="1.2"/>` + `<text x="${-CW / 2 + 8}" y="12" font-family="system-ui, sans-serif" font-weight="800" font-size="8.5" fill="#fff" text-anchor="middle">${t}</text>`; };
 function card(k, x, y, sc = 1) {
   const rot = (k.id * 37) % 9 - 4, col = k.s === '♥' || k.s === '♦' ? T.red : INK;
   const g = `<g transform="translate(${x},${y}) rotate(${rot}) scale(${sc})" filter="url(#fx)">`
     + `<rect x="${-CW / 2}" y="${-CH / 2}" width="${CW}" height="${CH}" rx="${CW * .12}" fill="${T.card}" stroke="${INK}" stroke-width="2.2"/>`
     + `<text x="${-CW / 2 + 4}" y="${-CH / 2 + 14}" font-family="${FONT}, sans-serif" font-size="${k.r === '10' ? 11 : 13}" fill="${col}">${k.r}</text>`
     + `<text x="${-CW / 2 + 4}" y="${-CH / 2 + 25}" font-size="10" fill="${col}">${k.s}</text>`
-    + txt(3, CH * .3, k.s, 24, col) + '</g>';
+    + txt(3, CH * .3, k.s, 24, col) + (zaehlwerte ? zaehlMarke(k.r) : '') + '</g>';
   const jetzt = performance.now();
   if (!gesehen.has(k.id)) gesehen.set(k.id, jetzt);
   const alt = jetzt - gesehen.get(k.id);
@@ -218,7 +221,7 @@ const ERG = {
 };
 // Eine Hand: Karten leicht versetzt wie im Casino, darüber der Wert, nach der Runde das Ergebnis
 function handSvg(h, x, y, sc, aktiv) {
-  const m = h.karten.length, dx = 14 * sc, dy = 6 * sc, x0 = x - (m - 1) * dx / 2, y0 = y + (m - 1) * dy / 2;
+  const m = h.karten.length, dx = 17 * sc, dy = 6 * sc, x0 = x - (m - 1) * dx / 2, y0 = y + (m - 1) * dy / 2;
   const top = y0 - (m - 1) * dy - CH * sc / 2;
   let s = '';
   if (aktiv) s += `<rect x="${x0 - CW * sc / 2 - 6}" y="${top - 6}" width="${(m - 1) * dx + CW * sc + 12}" height="${(m - 1) * dy + CH * sc + 12}" rx="8" fill="none" stroke="${T.acc}" stroke-width="3"><animate attributeName="opacity" values="1;.3;1" dur="1.2s" repeatCount="indefinite"/></rect>`;
@@ -267,10 +270,11 @@ function ausschnitt(svg, L, verdeckt) {
   return `${(x0 + x1) / 2 - w / s / 2} ${y0 - rest * .3} ${w / s} ${h / s}`;
 }
 
-// Zeichnet den ganzen Tisch. ui: { du: Platz des Spielers, sprech: { platz, text }, verdeckt }
+// Zeichnet den ganzen Tisch. ui: { du: Platz des Spielers, sprech: { platz, text }, verdeckt, zaehlwerte }
 export function zeichne(svg, t, ui) {
   const L = lay();
   uid = 0;
+  zaehlwerte = ui.zaehlwerte !== false;
   const tisch = table(L, t.regeln), schuh = shoe(L, t);
   const seats = t.plaetze.map((p, i) => seat(L, t, i, ui));
   const body = bg(L)

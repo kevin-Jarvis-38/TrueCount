@@ -8,7 +8,7 @@ const TEMPO = [['Langsam', 900], ['Normal', 600], ['Schnell', 350]];
 const SPRUCH = { karte: 'Karte!', bleiben: 'Bleib!', verdoppeln: 'Doppelt!', teilen: 'Teilen!', aufgeben: 'Ich pass …' };
 const KEY = 'truecount.v1';
 
-const stand = { geld: 1000, einsatz: 10, decks: HINTERZIMMER.decks, schnitt: HINTERZIMMER.schnitt, tempo: 1 };
+const stand = { geld: 1000, einsatz: 10, decks: HINTERZIMMER.decks, schnitt: HINTERZIMMER.schnitt, tempo: 1, zaehlwerte: true };
 try { Object.assign(stand, JSON.parse(localStorage.getItem(KEY))); } catch {}
 const speichern = () => { try { localStorage.setItem(KEY, JSON.stringify(stand)); } catch {} };
 
@@ -51,7 +51,7 @@ function hinweis() {
 function render() {
   // hochkant liegen die Knöpfe über dem unteren Teil der Szene
   const verdeckt = innerWidth > innerHeight ? 0 : $('#stage').getBoundingClientRect().bottom - $('#aux').getBoundingClientRect().top;
-  zeichne($('#scene'), tisch, { du: DU, sprech, verdeckt });
+  zeichne($('#scene'), tisch, { du: DU, sprech, verdeckt, zaehlwerte: stand.zaehlwerte });
   const p = ich(), zw = zwischenRunden(), m = tisch.ap === DU ? tisch.moeglich() : {};
   $('#app').dataset.modus = zw ? 'setzen' : 'zug';
   document.querySelectorAll('#main .z').forEach(b => { b.disabled = !m[b.dataset.a]; });
@@ -140,12 +140,14 @@ function drawOpt() {
   $('#o-decks').textContent = stand.decks;
   $('#o-schnitt').textContent = Math.round(stand.schnitt * 100) + ' %';
   $('#o-tempo').textContent = TEMPO[stand.tempo][0];
+  $('#o-werte').textContent = stand.zaehlwerte ? 'An' : 'Aus';
 }
 function option(o) {
   const [k, d] = o.split(':'), r = +d;
   if (k === 'decks') stand.decks = Math.min(8, Math.max(1, stand.decks + r));
   if (k === 'schnitt') stand.schnitt = Math.min(.85, Math.max(.5, Math.round((stand.schnitt + r * .05) * 100) / 100));
   if (k === 'tempo') stand.tempo = Math.min(2, Math.max(0, stand.tempo + r));
+  if (k === 'werte') { stand.zaehlwerte = !stand.zaehlwerte; render(); }
   speichern();
   drawOpt();
 }

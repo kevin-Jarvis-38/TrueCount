@@ -34,6 +34,8 @@ Diese Datei ist der feste Stand, den der Nutzer und Claude gemeinsam festgelegt 
 
 ## Zählen (das Herzstück)
 - Hi-Lo: 2–6 zählen +1, 7–9 zählen 0, 10/B/D/K/A zählen −1.
+- Lernhilfe (Wunsch vom 2026-10-23): Jede Karte zeigt links eine kleine Marke mit ihrem Zählwert (grün +1, grau 0, rot −1).
+  Sie ist in den Optionen abschaltbar und standardmäßig an.
 - True Count = laufender Count ÷ restliche Decks. Die Decks schätzt man auf ein halbes Deck genau, das Ergebnis wird abgerundet.
 - Die App fragt **vor dem Setzen** nach dem True Count, manchmal auch nach dem laufenden Count.
   Danach zeigt sie immer den Rechenweg.
