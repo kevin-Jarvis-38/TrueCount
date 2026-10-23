@@ -20,7 +20,7 @@ export const TISCHE = [
   },
   {
     nr: 4, name: 'Lounge', min: 50, max: 1000, decks: 6, fragen: [6, 10], zeit: 12, tempo: .6, xp: 3, sitz: 1000,
-    frei: { geld: 25000, level: 20, quote: .8 }, chips: [25, 100, 500, 1000], filz: '#3d2c6b', hands: [2, 3],
+    frei: { geld: 25000, level: 20, quote: .8 }, chips: [25, 100, 500, 1000], filz: '#3d2c6b', hands: [1, 3],
     plaetze: ['dieter', 'du', 'du', 'du', 'hilde'],
   },
   {

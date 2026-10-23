@@ -16,7 +16,7 @@ const bubble = (t, links) => `<g transform="translate(${links ? -30 : 30},-44) r
 // Neue Karten fliegen aus dem Schuh herein. Die Uhrzeit merkt sich, wann eine Karte zum ersten Mal gezeichnet wurde,
 // damit ein zweites Zeichnen kurz danach die Flug-Animation nicht abbricht.
 const gesehen = new Map(), FLUG = 260;
-let quelle = [0, 0], zaehlwerte = true;
+let quelle = [0, 0], zaehlwerte = true, deckInfo = false;
 // Marke links unter der Ecke mit dem Hi-Lo-Wert. Der linke Streifen bleibt sichtbar, wenn die nächste Karte darüber liegt.
 const ZW = { 1: ['+1', '#2a9d5c'], 0: ['0', '#8d99ae'], '-1': ['−1', '#e63946'] };
 const zaehlMarke = r => { const [t, f] = ZW[hiLo(r)]; return `<circle cx="${-CW / 2 + 8}" cy="9" r="7.5" fill="${f}" stroke="${INK}" stroke-width="1.2"/>` + `<text x="${-CW / 2 + 8}" y="12" font-family="system-ui, sans-serif" font-weight="800" font-size="8.5" fill="#fff" text-anchor="middle">${t}</text>`; };
@@ -69,16 +69,44 @@ function shoe(L, t) {
     s += `<rect x="${cx - 1.2}" y="${y - 18}" width="2.4" height="36" fill="${T.acc}" stroke="${INK}" stroke-width=".8"/>`;
   }
   s += S('path', { d: `M${x0 - 13},${y + 18} L${x0 - 1},${y - 15} L${x0 + 3},${y - 15} L${x0 - 9},${y + 18} Z`, sw: 1.5 }, T.back);
-  return fx(s) + txt(x, y + 34, 'SCHUH', 8, T.feltText, 'opacity=".75" letter-spacing="1"');
+  // Deck-Anzeige (nur an den ersten Tischen): wie viele Decks insgesamt und wie viele noch im Schuh stecken
+  const info = deckInfo ? badge(x, y + 50, `NOCH ≈${komma(halbe(t.restDecks()))}`, T.plate) : '';
+  return fx(s) + txt(x, y + 34, deckInfo ? `SCHUH · ${t.regeln.decks} DECKS` : 'SCHUH', 8, T.feltText, 'opacity=".85" letter-spacing="1"') + info;
 }
+const halbe = d => Math.max(.5, Math.round(d * 2) / 2), komma = n => String(n).replace('.', ',');
 // Ablage: so hoch wie der Stapel der gespielten Karten
 function tray(L, t) {
   const [x, y] = L.tray, H = t.regeln.decks * DECK + 6, st = Math.min(t.ablage / 52 * DECK, H - 6), w = CW + 10;
   let s = S('rect', { x: x - w / 2, y: y - H / 2, width: w, height: H, rx: 4 }, T.tray);
   s += `<rect x="${x - w / 2 + 5}" y="${y + H / 2 - 3 - st}" width="${w - 10}" height="${st}" fill="${T.card}" stroke="${INK}" stroke-width="1"/>`;
   for (let i = 1.6; i < st; i += 1.6) s += `<line x1="${x - w / 2 + 5}" y1="${y + H / 2 - 3 - i}" x2="${x + w / 2 - 5}" y2="${y + H / 2 - 3 - i}" stroke="#00000033" stroke-width=".6"/>`;
-  return fx(s) + txt(x, y + H / 2 + 13, 'ABLAGE', 8, T.feltText, 'opacity=".75" letter-spacing="1"');
+  const weg = Math.round(t.ablage / 26) / 2;
+  return fx(s) + txt(x, y + H / 2 + 13, deckInfo ? `ABLAGE ≈${komma(weg)}` : 'ABLAGE', 8, T.feltText, 'opacity=".85" letter-spacing="1"');
 }
+
+// Admin: Count-Tafel links neben dem Dealer, mit dem ganzen Rechenweg
+function countTafel(L, t) {
+  const hoch = L.W < 500, x = hoch ? 18 : 205, y = hoch ? 26 : 12, w = 136, rc = t.rc, d = halbe(t.restDecks());
+  const vz = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + komma(Math.abs(n)), roh = Math.round(rc / d * 10) / 10, tc = Math.trunc(rc / d);
+  const z = (dy, s, size = 10, extra = '') => `<text x="${x + 8}" y="${y + dy}" font-family="system-ui, sans-serif" font-weight="700" font-size="${size}" fill="${INK}" ${extra}>${s}</text>`;
+  return fx(`<rect x="${x}" y="${y}" width="${w}" height="94" rx="10" fill="${T.plate}" stroke="${INK}" stroke-width="2.2"/>`)
+    + `<rect x="${x}" y="${y}" width="${w}" height="17" rx="10" fill="#e63946"/><rect x="${x}" y="${y + 9}" width="${w}" height="8" fill="#e63946"/>`
+    + `<rect x="${x}" y="${y}" width="${w}" height="94" rx="10" fill="none" stroke="${INK}" stroke-width="2.2"/>`
+    + z(12.5, 'COUNT (ADMIN)', 9, 'fill="#fff" letter-spacing=".5"')
+    + z(31, `Laufender Count: ${vz(rc)}`) + z(42, 'alle Zählwerte zusammen', 8, 'opacity=".6" font-weight="500"')
+    + z(57, `Decks im Schuh: ≈${komma(d)}`)
+    + z(72, `True Count = ${vz(rc)} ÷ ${komma(d)}`, 9.5)
+    + z(87, `= ${vz(roh)} → ${vz(tc)}`, 11, 'font-weight="800"');
+}
+
+// Leerer Platz an Tischen mit mehreren Händen: Plus zum Dazunehmen, rotes × zum Weglegen
+function plusFeld(bx, by, i) {
+  return `<g data-plus="${i}" class="tippbar"><ellipse cx="${bx}" cy="${by}" rx="30" ry="22" fill="#000" opacity="0"/>`
+    + `<ellipse cx="${bx}" cy="${by}" rx="22" ry="13" fill="${T.acc}" fill-opacity=".25" stroke="${T.acc}" stroke-width="2.5" stroke-dasharray="5 3"><animate attributeName="opacity" values="1;.4;1" dur="1.4s" repeatCount="indefinite"/></ellipse>`
+    + fx(`<circle cx="${bx}" cy="${by}" r="10" fill="${T.acc}" stroke="${INK}" stroke-width="2"/>`) + txt(bx, by + 6, '+', 17, INK) + '</g>';
+}
+const minusFeld = (bx, by, i) => `<g data-minus="${i}" class="tippbar"><circle cx="${bx + 24}" cy="${by - 12}" r="14" fill="#000" opacity="0"/>`
+  + fx(`<circle cx="${bx + 24}" cy="${by - 12}" r="8" fill="#e63946" stroke="${INK}" stroke-width="1.8"/>`) + txt(bx + 24, by - 8, '×', 12, '#fff') + '</g>';
 
 // ---------- Hintergrund und Tisch ----------
 // Je besser der Tisch, desto edler der Raum: Holz im Hinterzimmer, Tapete im Club, Samt im Casino
@@ -131,10 +159,13 @@ function lamp(L, nr) {
 // Plätze von rechts nach links: Der Dealer teilt von seiner linken Seite aus.
 function lay(n) {
   const hoch = innerWidth <= innerHeight, fuenf = n > 3;
+  // Hochkant endet der Fokus genau an der Unterkante der Figur in der Mitte (Oberkörper bis y = 84 × Größe),
+  // damit sie bündig auf der Leiste über den Knöpfen steht.
   if (hoch) return {
-    W: 400, H: 600, top: 120, rx: 230, ry: 330, dealer: [200, 80], dk: [200, 172], shoe: [336, 160], tray: [52, 160],
+    W: 400, H: 600, top: 120, rx: 230, ry: 330, dealer: [200, 80], dk: [200, 172], shoe: [336, 160], tray: [52, 160], hoch: true,
     seats: fuenf ? [[346, 346], [284, 430], [200, 476], [116, 430], [54, 346]] : [[338, 392], [200, 476], [62, 392]],
-    bs: fuenf ? .78 : .95, ks: fuenf ? .8 : 1, k: [.26, .12], arcs: [.4, .48, .58], fs: [10, 8, 12], fokus: fuenf ? [0, 24, 400, 455] : [16, 24, 384, 455],
+    bs: fuenf ? .78 : .95, ks: fuenf ? .8 : 1, k: [.26, .12], arcs: [.4, .48, .58], fs: [10, 8, 12],
+    fokus: fuenf ? [0, 24, 400, 476 + 84 * .78] : [16, 24, 384, 476 + 84 * .95],
   };
   return {
     W: 800, H: 420, top: 104, rx: 440, ry: 270, dealer: [400, 64], dk: [400, 158], shoe: [655, 142], tray: [145, 142],
@@ -180,6 +211,8 @@ function seat(L, t, i, ui) {
   let s = `<ellipse cx="${bx}" cy="${by}" rx="20" ry="11" fill="none" stroke="${T.feltText}" stroke-width="2" opacity=".55"/>`;
   if (ui.setzen?.includes(i)) s += `<ellipse cx="${bx}" cy="${by}" rx="24" ry="14" fill="none" stroke="${T.acc}" stroke-width="3"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></ellipse>`;
   s += chipStack(bx, by, p.haende.reduce((a, h) => a + h.einsatz, 0));
+  if (ui.plus?.includes(i)) s += plusFeld(bx, by, i);
+  if (ui.minus?.includes(i)) s += minusFeld(bx, by, i);
   if (p.versicherung) s += chipStack(bx + (x > C[0] ? -30 : 30), by - 12, p.versicherung);
   const n = p.haende.length, sc = L.ks * (n > 2 ? .72 : n === 2 ? .86 : 1), sp = CW * sc + 12;
   p.haende.forEach((h, j) => { s += handSvg(h, cx + (j - (n - 1) / 2) * sp, cy, sc, t.phase === 'spielen' && t.ap === i && t.ah === j); });
@@ -188,26 +221,29 @@ function seat(L, t, i, ui) {
 }
 
 // Bildausschnitt: Der Fokus-Bereich (Dealer bis zu deinen Karten) füllt die Breite bzw. den freien Platz über den Knöpfen.
-// Die Szene läuft hinter den Knöpfen weiter (verdeckt = Pixel unten), deine Figur verschwindet dort zur Hälfte.
-// Die Größe hängt nur von Bildschirm und Ausrichtung ab, deshalb zoomt nichts mehr.
+// Hochkant läuft die Szene hinter den Knöpfen weiter (verdeckt = Pixel unten). Der Fokus endet bündig an ihrer Oberkante,
+// übriger Platz kommt oben dazu. Die Größe hängt nur von Bildschirm und Ausrichtung ab, deshalb zoomt nichts.
 function ausschnitt(svg, L, verdeckt) {
   const { width: w, height: h } = svg.getBoundingClientRect(), [x0, y0, x1, y1] = L.fokus;
   if (!w || !h) return `0 0 ${L.W} ${L.H}`;
   const frei = Math.max(h - verdeckt, 50), s = Math.min(w / (x1 - x0), frei / (y1 - y0));
-  const rest = frei / s - (y1 - y0);
-  return `${(x0 + x1) / 2 - w / s / 2} ${y0 - rest * .3} ${w / s} ${h / s}`;
+  const oben = L.hoch ? y1 - frei / s : y0 - (frei / s - (y1 - y0)) * .3;
+  return `${(x0 + x1) / 2 - w / s / 2} ${oben} ${w / s} ${h / s}`;
 }
 
-// Zeichnet den ganzen Tisch. ui: { nr, filz, setzen: Plätze mit blinkendem Setzfeld, sprech: { platz, text }, verdeckt, zaehlwerte }
+// Zeichnet den ganzen Tisch. ui: { nr, filz, setzen: Plätze mit blinkendem Setzfeld, sprech: { platz, text }, verdeckt,
+// zaehlwerte, decks (Deck-Anzeige), admin (Count-Tafel), plus / minus: Plätze mit Plus bzw. × zum Hände-Wechseln }
 export function zeichne(svg, t, ui) {
   const L = lay(t.plaetze.length);
   zaehlwerte = ui.zaehlwerte !== false;
+  deckInfo = !!ui.decks;
   const tisch = table(L, t.regeln, ui.nr, ui.filz), schuh = shoe(L, t);
   const seats = t.plaetze.map((p, i) => seat(L, t, i, ui));
   const body = bg(L, ui.nr)
     + bust(DEALER, '', L.dealer[0], L.dealer[1], L.W > 500 ? .9 : 1)
     + tisch.s + lamp(L, ui.nr) + schuh + tray(L, t)
-    + seats.map(s => s.felt).join('') + dealerSvg(L, t) + seats.map(s => s.bust).join('');
+    + seats.map(s => s.felt).join('') + dealerSvg(L, t) + seats.map(s => s.bust).join('')
+    + (ui.admin ? countTafel(L, t) : '');
   svg.setAttribute('viewBox', ausschnitt(svg, L, ui.verdeckt || 0));
   svg.innerHTML = `<defs>${tisch.defs}</defs>${body}`;
 }

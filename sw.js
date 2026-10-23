@@ -1,11 +1,11 @@
 // TrueCount – Service Worker: alles offline verfügbar.
 // Bei jeder Änderung CACHE hochzählen, sonst sehen installierte Apps die neue Version nicht.
-const CACHE = 'truecount-1';
+const CACHE = 'truecount-2';
 const DATEIEN = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/ui.js', 'js/karten.js', 'js/strategie.js', 'js/tisch.js', 'js/tische.js',
   'js/figuren.js', 'js/szene.js', 'js/profil.js', 'js/sound.js', 'js/training.js',
-  'icons/icon.svg', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
+  'icons/favicon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', e => {

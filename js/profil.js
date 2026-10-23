@@ -1,7 +1,7 @@
 // TrueCount – Spielstand: Geld, XP, Level, Pott, Serie, Erfolge und Freischaltungen.
 // Der normale und der Admin-Spielstand liegen getrennt im localStorage, die Einstellungen gelten für beide.
 import { TISCHE } from './tische.js';
-import { OUTFITS, ACCESSOIRES } from './figuren.js';
+import { OUTFITS, ACCESSOIRES, accNr } from './figuren.js';
 
 export const ADMIN_PIN = '2121';
 const KEY = { normal: 'truecount.v2', admin: 'truecount.admin' }, KEY_MODUS = 'truecount.modus', KEY_EINST = 'truecount.einstellungen';
@@ -50,7 +50,34 @@ export const ERFOLGE = [
   ['shopping', '🛍️', 'Shopping-Tour', 'Kauf dein erstes Teil im Shop.', 25],
   ['modebewusst', '🕶️', 'Modebewusst', 'Besitze 8 Teile aus dem Shop.', 150],
   ['trainiert', '🏋️', 'Trainingsfleißig', 'Schließ 20 Trainingsrunden ab.', 100],
+  ['blitzfinger', '👆', 'Blitzfinger', 'Zählwert-Tippen: alle 30 Karten richtig in unter 30 Sekunden.', 150],
+  ['mehrhaendig', '🐙', 'Krake', 'Spiel 3 Hände gleichzeitig.', 100],
 ].map(([id, emoji, name, text, xp]) => ({ id, emoji, name, text, xp }));
+
+// Fortschritt eines Erfolgs: { anteil 0–1, text }. Bei Erfolgen ohne Zwischenstand heißt es 0 / 1.
+const st = k => P.stat[k] || 0, tausend = n => n.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+const zahlStand = (ist, ziel) => ({ anteil: Math.min(1, ist / ziel), text: `${tausend(Math.min(ist, ziel))} / ${tausend(ziel)}` });
+function tischStand(nr) {
+  const f = TISCHE[nr - 1].frei, l = level(P.xp), teile = [[Math.min(1, l / f.level), `Level ${l}/${f.level}`], [Math.min(1, P.geld / f.geld), `${tausend(P.geld)} / ${tausend(f.geld)} €`]];
+  if (f.quote) teile.push([P.verlauf.length < QUOTE_MIN ? 0 : Math.min(1, quote() / f.quote), `Quote ${Math.round(quote() * 100)}/${f.quote * 100} %`]);
+  return { anteil: teile.reduce((a, [x]) => a + x, 0) / teile.length, text: teile.map(t => t[1]).join(' · ') };
+}
+const STAND = {
+  erste_hand: () => zahlStand(st('haende'), 1), haende_100: () => zahlStand(st('haende'), 100),
+  haende_1000: () => zahlStand(st('haende'), 1000), haende_10000: () => zahlStand(st('haende'), 10000),
+  bj_serie: () => zahlStand(P.stat.letzteBJ ? 1 : 0, 2), verdoppler: () => zahlStand(st('verdoppeltGewonnen'), 25),
+  zaehler_50: () => zahlStand(st('countRichtig'), 50), zaehler_500: () => zahlStand(st('countRichtig'), 500),
+  schnellrechner: () => zahlStand(st('schnell'), 10), lehrers_liebling: () => zahlStand(st('zugSerie'), 50),
+  tisch2: () => tischStand(2), tisch3: () => tischStand(3), tisch4: () => tischStand(4), tisch5: () => tischStand(5),
+  level5: () => zahlStand(level(P.xp), 5), level10: () => zahlStand(level(P.xp), 10), level20: () => zahlStand(level(P.xp), 20),
+  level30: () => zahlStand(level(P.xp), 30), level40: () => zahlStand(level(P.xp), 40),
+  shopping: () => zahlStand(P.besitz.length - STARTER.length, 1), modebewusst: () => zahlStand(P.besitz.length - STARTER.length, 8),
+  trainiert: () => zahlStand(st('training'), 20), comeback: () => P.tief500 ? { anteil: Math.min(1, P.geld / 1000), text: `${tausend(P.geld)} / 1.000 €` } : zahlStand(0, 1),
+};
+export function erfolgStand(id) {
+  if (P.erfolge[id]) return { anteil: 1, text: 'Geschafft am ' + new Date(P.erfolge[id]).toLocaleDateString('de-DE') };
+  return (STAND[id] || (() => zahlStand(0, 1)))();
+}
 
 // ---------- Laden und Speichern ----------
 export const STARTER = OUTFITS.filter(o => !o.preis).map(o => o.id);
@@ -60,11 +87,18 @@ const neu = () => ({
 });
 function adminNeu() {
   return { ...neu(), geld: 1000000, xp: levelXp(40), tische: [1, 2, 3, 4, 5], besitz: [...OUTFITS, ...ACCESSOIRES].map(o => o.id),
-    figur: { tier: 'fuchs', farbe: '#e8772e', outfit: 'smoking', acc: 'krone' } };
+    figur: { tier: 'fuchs', farbe: '#e8772e', outfit: 'smoking', acc: { kopf: 'krone', augen: 'sonnenbrille', hals: 'goldkette' } } };
+}
+// Früher gab es nur ein Accessoire (acc: 'cap'), jetzt eins pro Fach (acc: { kopf: 'cap' })
+function figurAnpassen(f) {
+  if (f && (typeof f.acc === 'string' || f.acc === null || f.acc === undefined)) {
+    const alt = f.acc && accNr(f.acc);
+    f.acc = alt ? { [alt.fach]: alt.id } : {};
+  }
 }
 
 export let P, modus;
-export const E = Object.assign({ decks: 0, schnitt: .75, tempo: 1, zaehlwerte: true, lehrer: true, fragen: true, countAnzeige: false,
+export const E = Object.assign({ decks: 0, schnitt: .75, tempo: 1, zaehlwerte: true, legende: true, lehrer: true, fragen: true, countAnzeige: false,
   ton: true, lautEffekte: .8, lautAmbiente: .4 }, lesen(KEY_EINST));
 export const einstellungenSpeichern = () => schreiben(KEY_EINST, E);
 
@@ -78,6 +112,8 @@ export function laden(m = lesen(KEY_MODUS) || 'normal') {
   }
   if (!P) P = adminNeu();
   P = Object.assign(neu(), P);
+  figurAnpassen(P.figur);
+  if (m === 'admin') P.besitz = [...new Set([...P.besitz, ...OUTFITS.map(o => o.id), ...ACCESSOIRES.map(a => a.id)])]; // neue Shop-Teile gleich mit
   schreiben(KEY_MODUS, m);
   speichern();
 }

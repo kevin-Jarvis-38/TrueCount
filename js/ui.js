@@ -1,5 +1,6 @@
 // TrueCount – gemeinsame Bausteine der Oberfläche: Meldungen, Einblendungen und das Zahlenfeld.
 import { sound } from './sound.js';
+import { figurBild, LEHRER } from './figuren.js';
 
 export const $ = s => document.querySelector(s);
 export const fmt = n => n === Infinity ? '∞' : n.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' €';
@@ -50,6 +51,26 @@ export function wackeln(text) {
   s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake');
   if (text) toast(text, { vorne: true });
 }
+
+// ---------- Professor Uhu: läuft von der Seite ins Bild und erklärt in einer großen Sprechblase ----------
+// Solange er redet, liegt er über allem. Das Spiel wartet, weil man nichts anderes antippen kann.
+let uhuFertig = null;
+export function uhu(titel, absaetze, { knopf = 'Alles klar!', zu = null } = {}) {
+  const el = $('#uhu');
+  el.innerHTML = `<div class="uhu-figur">${figurBild(LEHRER)}<b>${LEHRER.name}</b></div>`
+    + `<div class="uhu-blase"><div class="pn uhu-text"><h2>${titel}</h2>${absaetze.map(p => `<p>${p}</p>`).join('')}`
+    + `<button class="btn hit voll" data-uhu="zu">${knopf}</button></div></div>`;
+  el.classList.add('open');
+  uhuFertig = zu;
+  sound.klick();
+}
+export function uhuWeg() {
+  $('#uhu').classList.remove('open');
+  const f = uhuFertig;
+  uhuFertig = null;
+  f?.();
+}
+export const uhuOffen = () => $('#uhu').classList.contains('open');
 
 // ---------- Zahlenfeld für Count-Antworten (auch negativ) ----------
 let kp = { s: '', neg: false, fertig: null, stellen: 3, pin: false };

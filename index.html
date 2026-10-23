@@ -7,8 +7,8 @@
 <meta name="description" content="Blackjack-App zum Kartenzählen lernen (Hi-Lo)">
 <title>TrueCount</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon-512.png">
+<link rel="icon" href="icons/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,8 +22,8 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="fx" x="-20%" y="-20%" width="150%" height="160%"><feFlood flood-color="#000" flood-opacity=".38"/><feComposite in2="SourceAlpha" operator="in"/><feOffset dx="2" dy="4" result="s"/><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg>
 
 <section id="lobby" class="screen">
-  <header class="logo"><div><span class="tc">TC</span> True<b>Count</b></div><em id="admin-badge" hidden>ADMIN</em></header>
-  <div class="pn profil" id="profil"></div>
+  <header class="logo"><div><img class="tc" src="icons/icon-192.png" alt=""> True<b>Count</b></div><em id="admin-badge" hidden>ADMIN</em></header>
+  <button class="pn profil" id="profil" data-l="profil" aria-label="Profil öffnen"></button>
   <div id="tischliste"></div>
   <nav class="nav">
     <button class="btn aux" data-l="training">🏋️ Training</button>
@@ -44,6 +44,7 @@
   <main id="stage"><svg id="scene" preserveAspectRatio="xMidYMid meet"></svg></main>
   <section id="aux">
     <p class="pn tip" id="tip"></p>
+    <button class="btn aux info" data-a="info" hidden aria-label="Professor Uhu fragen">i</button>
     <button class="btn aux z" data-a="aufgeben">Aufgeben<small>Surrender</small></button>
     <button class="btn aux s" data-a="aufstehen">Aufstehen<small>Pott sichern</small></button>
     <button class="btn aux" data-a="optionen">Optionen<small>Schuh · Ton</small></button>
@@ -62,5 +63,6 @@
 
 <div id="toast" class="pn"></div>
 <div class="ov" id="ov"><div class="pn sheet" id="sheet"></div></div>
+<div id="uhu"></div>
 </body>
 </html>

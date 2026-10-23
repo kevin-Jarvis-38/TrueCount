@@ -30,8 +30,8 @@ const zaehne = pts => pts.map(([x, y]) => `<path d="M${x - 3},${y} L${x},${y + 5
 
 // ---------- Köpfe ----------
 // Augenhöhe und Augenabstand je Tier (für die Sonnenbrille), Oberkante des Kopfes (für Hüte)
-const AUGEN = { fuchs: [-6, 11], gorilla: [-1, 9], hase: [-3, 10], pinguin: [-1, 8], hyaene: [-6, 10], kater: [-4, 11], hund: [-6, 10], esel: [-8, 10], krokodil: [-21, 13], koala: [-6, 12], lama: [-6, 9], kaenguru: [-7, 10] };
-const OBEN = { fuchs: -24, gorilla: -29, hase: -24, pinguin: -26, hyaene: -23, kater: -24, hund: -24, esel: -30, krokodil: -29, koala: -22, lama: -34, kaenguru: -25 };
+const AUGEN = { fuchs: [-6, 11], gorilla: [-1, 9], hase: [-3, 10], pinguin: [-1, 8], hyaene: [-6, 10], kater: [-4, 11], hund: [-6, 10], esel: [-8, 10], krokodil: [-21, 13], koala: [-6, 12], lama: [-6, 9], kaenguru: [-7, 10], eule: [-3, 11] };
+const OBEN = { fuchs: -24, gorilla: -29, hase: -24, pinguin: -26, hyaene: -23, kater: -24, hund: -24, esel: -30, krokodil: -29, koala: -22, lama: -34, kaenguru: -25, eule: -26 };
 
 const HEADS = {
   fuchs: c => S('path', { d: 'M-25,-6 L-29,-46 L-5,-24 Z' }, c.fur) + S('path', { d: 'M25,-6 L29,-46 L5,-24 Z' }, c.fur)
@@ -135,10 +135,20 @@ const HEADS = {
       + ln('M0,9 V14 M-5,16 Q0,19 5,16', THIN)
       + eye(-10, -7, 6, { dx: .2, dy: .3, fur: c.fur }) + eye(10, -7, 6, { dx: .2, dy: .3, fur: c.fur });
   },
+  eule: c => S('path', { d: 'M-24,-12 L-30,-38 L-11,-22 Z' }, c.fur) + S('path', { d: 'M24,-12 L30,-38 L11,-22 Z' }, c.fur)
+    + S('ellipse', { cx: 0, cy: 0, rx: 28, ry: 26 }, c.fur)
+    + S('circle', { cx: -11, cy: -3, r: 11.5, sw: 2 }, '#f5e6c8') + S('circle', { cx: 11, cy: -3, r: 11.5, sw: 2 }, '#f5e6c8')
+    + eye(-11, -3, 6.5, { dx: .3, dy: .2, fur: '#f5e6c8' }) + eye(11, -3, 6.5, { dx: .3, dy: .2, fur: '#f5e6c8' })
+    + S('path', { d: 'M-5,8 L5,8 L0,19 Z', sw: 2 }, '#f4a020')
+    + ln('M-14,17 l3,3 M14,17 l-3,3 M-6,21 l2,3 M6,21 l-2,3', 1.4, darken(c.fur, .35)),
 };
 
 // ---------- Oberkörper ----------
-const torso = col => S('path', { d: 'M-42,84 C-42,46 -28,26 0,26 C28,26 42,46 42,84 Z' }, col);
+const TORSO = 'M-42,84 C-42,46 -28,26 0,26 C28,26 42,46 42,84 Z';
+const torso = col => S('path', { d: TORSO }, col);
+// Muster (Karos, Streifen, Glitzer) nur innerhalb des Oberkörpers zeichnen
+const imTorso = inner => { const id = 't' + (++uid); return `<clipPath id="${id}"><path d="${TORSO}"/></clipPath><g clip-path="url(#${id})">${inner}</g>`; };
+const knoepfe = (x, ys) => ys.map(y => `<circle cx="${x}" cy="${y}" r="1.6" fill="${INK}"/>`).join('');
 const flecken = pts => pts.map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * .75}" fill="#a07838" opacity=".5"/>`).join('');
 const kragen = col => S('path', { d: 'M-12,28 L0,40 L12,28 L8,44 L0,40 L-8,44 Z', sw: 2 }, col);
 const BODIES = {
@@ -157,8 +167,35 @@ const BODIES = {
   sakko: c => torso(c.shirt) + S('path', { d: 'M-12,27 L0,60 L12,27 Z', sw: 2 }, '#f5f5f5')
     + S('path', { d: 'M-12,27 L-18,40 L-4,52 L0,60 Z M12,27 L18,40 L4,52 L0,60 Z', sw: 2 }, darken(c.shirt, .25))
     + `<circle cx="0" cy="68" r="2" fill="${INK}"/><circle cx="0" cy="76" r="2" fill="${INK}"/>`,
-  smoking: () => torso('#262a36') + S('path', { d: 'M-13,27 L0,62 L13,27 Z', sw: 2 }, '#f5f5f5')
+  smoking: c => torso(c.shirt || '#262a36') + S('path', { d: 'M-13,27 L0,62 L13,27 Z', sw: 2 }, '#f5f5f5')
     + S('path', { d: 'M0,34 L-12,28 L-12,40 Z M0,34 L12,28 L12,40 Z', sw: 2 }, '#e63946') + S('circle', { cx: 0, cy: 34, r: 3, sw: 1.5 }, '#e63946'),
+  tank: c => torso(c.fur) + S('path', { d: 'M-25,84 L-22,44 Q-17,34 -12,31 Q0,46 12,31 Q17,34 22,44 L25,84 Z' }, c.shirt),
+  karo: c => torso(c.shirt) + imTorso([-36, -24, -12, 0, 12, 24, 36].map(x => `<rect x="${x - 3}" y="20" width="6" height="70" fill="${darken(c.shirt, .35)}" opacity=".45"/>`).join('')
+    + [36, 48, 60, 72].map(y => `<rect x="-50" y="${y - 3}" width="100" height="6" fill="${darken(c.shirt, .35)}" opacity=".45"/>`).join('')
+    + [-30, -6, 18].map(x => `<line x1="${x}" y1="20" x2="${x}" y2="90" stroke="#ffffff" stroke-width="1" opacity=".35"/>`).join(''))
+    + kragen(lighten(c.shirt, .2)) + ln('M0,42 V84', 1.5) + knoepfe(3, [50, 60, 70]),
+  rollkragen: c => torso(c.shirt) + S('rect', { x: -15, y: 22, width: 30, height: 12, rx: 5, sw: 2 }, lighten(c.shirt, .12))
+    + ln('M-12,26 H12 M-12,30 H12', 1, '#ffffff', 'opacity=".25"'),
+  trikot: c => torso(c.shirt) + imTorso(`<rect x="-46" y="20" width="10" height="70" fill="#ffffff" opacity=".85"/><rect x="36" y="20" width="10" height="70" fill="#ffffff" opacity=".85"/>`)
+    + S('path', { d: 'M-12,27 L0,40 L12,27 Z', sw: 2 }, '#ffffff') + txt(0, 70, '10', 22, '#ffffff', `stroke="${INK}" stroke-width="1.5"`),
+  trainingsjacke: c => torso(c.shirt) + imTorso([-38, -33].map(x => `<line x1="${x}" y1="30" x2="${x - 4}" y2="90" stroke="#ffffff" stroke-width="2.6"/><line x1="${-x}" y1="30" x2="${-x + 4}" y2="90" stroke="#ffffff" stroke-width="2.6"/>`).join(''))
+    + S('path', { d: 'M-13,26 L0,36 L13,26 L13,31 L0,41 L-13,31 Z', sw: 2 }, darken(c.shirt, .2)) + ln('M0,41 V84', 2.2, '#d9d9d9'),
+  jeans: c => torso(c.shirt) + S('path', { d: 'M-14,27 L-6,46 L0,40 L6,46 L14,27 L0,34 Z', sw: 2 }, darken(c.shirt, .2))
+    + S('rect', { x: -26, y: 50, width: 14, height: 11, rx: 2, sw: 1.8 }, darken(c.shirt, .12)) + S('rect', { x: 12, y: 50, width: 14, height: 11, rx: 2, sw: 1.8 }, darken(c.shirt, .12))
+    + ln('M0,46 V84', 1.5) + ln('M-30,74 H30', 1.2, '#f4d03f', 'stroke-dasharray="3 2" opacity=".8"') + knoepfe(3, [56, 66]),
+  weste: c => torso('#f1efe6') + kragen('#ffffff')
+    + S('path', { d: 'M-24,84 L-24,46 Q-20,34 -12,30 L-2,52 L-2,84 Z M24,84 L24,46 Q20,34 12,30 L2,52 L2,84 Z', sw: 2 }, c.shirt) + knoepfe(-5, [60, 68, 76]),
+  bomber: c => torso(c.shirt) + S('path', { d: 'M-16,25 Q0,35 16,25 L16,31 Q0,41 -16,31 Z', sw: 2 }, '#e85d04')
+    + ln('M0,36 V84', 2.2, '#c9c9c9') + S('rect', { x: -30, y: 58, width: 4, height: 14, rx: 1, sw: 1.5 }, darken(c.shirt, .25))
+    + imTorso(`<rect x="-50" y="78" width="100" height="10" fill="#e85d04"/>`),
+  held: c => torso(c.shirt) + S('path', { d: 'M-15,44 L15,44 L0,66 Z', sw: 2.2 }, '#f4d03f')
+    + S('path', { d: 'M2,46 L-5,56 L1,56 L-3,64 L6,52 L0,52 L4,46 Z', sw: 1 }, '#e63946')
+    + imTorso(`<rect x="-50" y="78" width="100" height="8" fill="#e63946"/>`),
+  pelz: c => torso(c.shirt) + ln('M0,40 V84', 1.5)
+    + [[-22, 30], [-16, 38], [-10, 44], [-25, 42], [-18, 50], [22, 30], [16, 38], [10, 44], [25, 42], [18, 50], [0, 30]].map(([x, y]) => S('circle', { cx: x, cy: y, r: 8, sw: 1.8 }, '#f5f0e6')).join(''),
+  glitzer: c => torso(c.shirt) + imTorso(Array.from({ length: 34 }, (_, i) => `<circle cx="${-40 + (i * 23) % 80}" cy="${30 + (i * 17) % 56}" r="${1.4 + (i % 3) * .6}" fill="#ffffff" opacity=".7"/>`).join(''))
+    + S('path', { d: 'M-12,27 L0,60 L12,27 Z', sw: 2 }, '#1b1b2f')
+    + S('path', { d: 'M-12,27 L-18,40 L-4,52 L0,60 Z M12,27 L18,40 L4,52 L0,60 Z', sw: 2 }, darken(c.shirt, .25)),
 };
 
 // ---------- Accessoires ----------
@@ -177,6 +214,26 @@ const ACCS = {
   krone: o => `<g transform="translate(0,${o + 4})">${S('path', { d: 'M-20,0 L-24,-24 L-12,-12 L0,-28 L12,-12 L24,-24 L20,0 Z' }, '#f4d03f')}<circle cx="0" cy="-8" r="3.5" fill="#e63946" stroke="${INK}" stroke-width="1.2"/><circle cx="-12" cy="-5" r="2.5" fill="#3a86ff" stroke="${INK}" stroke-width="1"/><circle cx="12" cy="-5" r="2.5" fill="#2a9d5c" stroke="${INK}" stroke-width="1"/></g>`,
   fliege: () => `<g transform="translate(0,31)">${S('path', { d: 'M0,0 L-13,-7 L-13,7 Z M0,0 L13,-7 L13,7 Z', sw: 2 }, '#c1121f')}${S('circle', { cx: 0, cy: 0, r: 3.5, sw: 1.5 }, '#c1121f')}</g>`,
   goldkette: () => ln('M-17,30 Q0,52 17,30', 3.2, '#f4c430', 'stroke-dasharray="4 2"') + S('circle', { cx: 0, cy: 44, r: 5.5, sw: 1.5 }, '#f4c430') + txt(0, 47, '$', 8, INK),
+  // Augen
+  nerdbrille: (o, a) => `<g transform="translate(0,${a[0]})">${[-a[1], a[1]].map(x => `<circle cx="${x}" cy="0" r="8.5" fill="#ffffff" fill-opacity=".25" stroke="${INK}" stroke-width="3"/>`).join('')}${ln(`M${-a[1] + 8.5},0 H${a[1] - 8.5}`, 3)}</g>`,
+  herzbrille: (o, a) => `<g transform="translate(0,${a[0]})">${[-a[1], a[1]].map(x => S('path', { d: `M${x},7 C${x - 13},-2 ${x - 7},-12 ${x},-5 C${x + 7},-12 ${x + 13},-2 ${x},7 Z`, sw: 2 }, '#ff4d6d')).join('')}${ln(`M${-a[1] + 7},-4 H${a[1] - 7}`, 2)}</g>`,
+  pilotenbrille: (o, a) => `<g transform="translate(0,${a[0]})">${[-a[1], a[1]].map(x => S('path', { d: `M${x - 10},-5 H${x + 10} Q${x + 9},9 ${x},9 Q${x - 9},9 ${x - 10},-5 Z`, sw: 2 }, '#3d5a80')).join('')}${ln(`M${-a[1] + 10},-4 H${a[1] - 10}`, 2, '#d4af37')}<path d="M${a[1] - 6},-2 l4,0" stroke="#ffffff" stroke-width="1.6" opacity=".7"/></g>`,
+  monokel: (o, a) => `<g transform="translate(${a[1]},${a[0]})"><circle r="8.5" fill="#ffffff" fill-opacity=".25" stroke="#d4af37" stroke-width="3"/><circle r="10" fill="none" stroke="${INK}" stroke-width="1"/>${ln('M6,6 Q14,22 8,40', 1.2, '#d4af37')}</g>`,
+  // Kopf
+  partyhut: o => `<g transform="translate(4,${o + 6}) rotate(10)">${S('path', { d: 'M-14,0 L0,-36 L14,0 Z' }, '#3a86ff')}${ln('M-9,-12 L7,-4 M-5,-24 L8,-16', 3, '#f4d03f')}${S('circle', { cx: 0, cy: -38, r: 5, sw: 2 }, '#e63946')}</g>`,
+  beanie: o => `<g transform="translate(0,${o + 24})">${S('path', { d: 'M-27,-10 C-27,-44 27,-44 27,-10 Z' }, '#6c757d')}${S('rect', { x: -28, y: -16, width: 56, height: 9, rx: 3, sw: 2 }, '#495057')}${ln('M-18,-16 V-7 M-9,-16 V-7 M0,-16 V-7 M9,-16 V-7 M18,-16 V-7', 1.2, INK, 'opacity=".5"')}</g>`,
+  doktorhut: o => `<g transform="translate(0,${o + 6})">${S('path', { d: 'M-17,-4 L-17,4 Q0,10 17,4 L17,-4 Z', sw: 2 }, '#1b1b2f')}${S('path', { d: 'M-30,-8 L0,-19 L30,-8 L0,3 Z', sw: 2.2 }, '#262a36')}${ln('M0,-8 L22,-4 L24,12', 1.8, '#f4d03f')}${S('circle', { cx: 24, cy: 14, r: 3, sw: 1 }, '#f4d03f')}</g>`,
+  heiligenschein: o => `<ellipse cx="0" cy="${o - 8}" rx="21" ry="5.5" fill="none" stroke="${INK}" stroke-width="7"/><ellipse cx="0" cy="${o - 8}" rx="21" ry="5.5" fill="none" stroke="#f4d03f" stroke-width="4"/>`,
+  // Hals
+  krawatte: () => S('path', { d: 'M-5,29 L5,29 L3,35 L-3,35 Z', sw: 1.8 }, '#1d3557') + S('path', { d: 'M-3,35 L3,35 L7,64 L0,71 L-7,64 Z', sw: 2 }, '#1d3557')
+    + ln('M-4,46 L5,42 M-5,56 L6,52', 2, '#e63946'),
+  schal: () => S('path', { d: 'M-22,24 Q0,38 22,24 L24,33 Q0,48 -24,33 Z', sw: 2 }, '#e63946')
+    + S('path', { d: 'M8,36 L18,34 L22,64 L12,66 Z', sw: 2 }, '#e63946') + ln('M-16,30 Q0,40 16,30 M10,46 L20,45 M11,56 L21,55', 2, '#ffffff', 'opacity=".8"'),
+  perlenkette: () => [-17, -13, -9, -4.5, 0, 4.5, 9, 13, 17].map(x => `<circle cx="${x}" cy="${30 + (1 - (x / 17) ** 2) * 13}" r="3" fill="#fbf8f0" stroke="${INK}" stroke-width="1.2"/>`).join(''),
+  // Mund
+  zigarre: () => `<g transform="rotate(12 6 17)">${S('rect', { x: 5, y: 14, width: 26, height: 7, rx: 3, sw: 1.8 }, '#7f4f24')}${S('rect', { x: 11, y: 14, width: 5, height: 7, sw: 1.2 }, '#d4af37')}${S('rect', { x: 29, y: 14, width: 4, height: 7, rx: 2, sw: 1.2 }, '#ff6b1a')}</g>`
+    + ln('M36,10 q6,-7 0,-13 q-6,-7 2,-15', 3, '#c9c9c9', 'opacity=".6"'),
+  lolli: () => ln('M4,17 L20,10', 2.5, '#f5f5f5') + S('circle', { cx: 25, cy: 7, r: 8, sw: 2 }, '#ff4d6d') + ln('M25,7 m-4,0 a4,4 0 1,1 4,4', 1.8, '#ffffff'),
 };
 
 // Eine Figur als Brustbild. f: { kind, body, fur, shirt, acc (eins oder Liste), flecken, muede }
@@ -216,20 +273,56 @@ export const OUTFITS = [
   { id: 'sakko_blau', name: 'Blaues Sakko', body: 'sakko', shirt: '#2b4c7e', preis: 1500 },
   { id: 'sakko_samt', name: 'Samt-Sakko', body: 'sakko', shirt: '#7b2cbf', preis: 3000 },
   { id: 'smoking', name: 'Smoking', body: 'smoking', preis: 6000 },
-];
-export const ACCESSOIRES = [
-  { id: 'cap', name: 'Cap', preis: 200 },
-  { id: 'muetze', name: 'Rasta-Mütze', preis: 250 },
-  { id: 'sonnenbrille', name: 'Sonnenbrille', preis: 400 },
-  { id: 'fliege', name: 'Fliege', preis: 600 },
-  { id: 'cowboyhut', name: 'Cowboyhut', preis: 1200 },
-  { id: 'goldkette', name: 'Goldkette', preis: 2500 },
-  { id: 'zylinder', name: 'Zylinder', preis: 4000 },
-  { id: 'krone', name: 'Krone', preis: 15000 },
-];
+  { id: 'tank_rot', name: 'Rotes Tanktop', body: 'tank', shirt: '#e63946', preis: 150 },
+  { id: 'polo_rot', name: 'Rotes Polo', body: 'polo', shirt: '#e63946', preis: 200 },
+  { id: 'hemd_blau', name: 'Hellblaues Hemd', body: 'hemd', shirt: '#a8dadc', preis: 300 },
+  { id: 'karohemd', name: 'Holzfäller-Hemd', body: 'karo', shirt: '#c1121f', preis: 350 },
+  { id: 'rollkragen', name: 'Rollkragen', body: 'rollkragen', shirt: '#1b1b2f', preis: 450 },
+  { id: 'trikot', name: 'Fußball-Trikot', body: 'trikot', shirt: '#2a9d5c', preis: 500 },
+  { id: 'trainingsjacke', name: 'Trainingsjacke', body: 'trainingsjacke', shirt: '#264653', preis: 600 },
+  { id: 'jeansjacke', name: 'Jeansjacke', body: 'jeans', shirt: '#4a6fa5', preis: 700 },
+  { id: 'weste', name: 'Weste', body: 'weste', shirt: '#6d4c41', preis: 900 },
+  { id: 'bomber', name: 'Bomberjacke', body: 'bomber', shirt: '#556b2f', preis: 1000 },
+  { id: 'held', name: 'Superhelden-Anzug', body: 'held', shirt: '#3a86ff', preis: 2000 },
+  { id: 'pelz', name: 'Pelzmantel', body: 'pelz', shirt: '#6d4c41', preis: 5000 },
+  { id: 'smoking_weiss', name: 'Weißer Smoking', body: 'smoking', shirt: '#f1efe6', preis: 7000 },
+  { id: 'glitzer', name: 'Glitzer-Anzug', body: 'glitzer', shirt: '#d4af37', preis: 9000 },
+].sort((a, b) => a.preis - b.preis);
 
-// Aus deinem gespeicherten Charakter die Figur bauen
+// Accessoires liegen in Fächern: aus jedem Fach kann man eins gleichzeitig tragen
+export const FAECHER = { kopf: 'Kopf', augen: 'Augen', hals: 'Hals', mund: 'Mund' };
+const REIHENFOLGE = ['hals', 'mund', 'augen', 'kopf']; // so wird gezeichnet: der Hut liegt über der Brille
+export const ACCESSOIRES = [
+  { id: 'stirnband', name: 'Stirnband', fach: 'kopf', preis: 150 },
+  { id: 'cap', name: 'Cap', fach: 'kopf', preis: 200 },
+  { id: 'muetze', name: 'Rasta-Mütze', fach: 'kopf', preis: 250 },
+  { id: 'beanie', name: 'Beanie', fach: 'kopf', preis: 300 },
+  { id: 'partyhut', name: 'Partyhut', fach: 'kopf', preis: 350 },
+  { id: 'doktorhut', name: 'Doktorhut', fach: 'kopf', preis: 1000 },
+  { id: 'cowboyhut', name: 'Cowboyhut', fach: 'kopf', preis: 1200 },
+  { id: 'zylinder', name: 'Zylinder', fach: 'kopf', preis: 4000 },
+  { id: 'heiligenschein', name: 'Heiligenschein', fach: 'kopf', preis: 7500 },
+  { id: 'krone', name: 'Krone', fach: 'kopf', preis: 15000 },
+  { id: 'nerdbrille', name: 'Nerd-Brille', fach: 'augen', preis: 300 },
+  { id: 'sonnenbrille', name: 'Sonnenbrille', fach: 'augen', preis: 400 },
+  { id: 'herzbrille', name: 'Herz-Brille', fach: 'augen', preis: 500 },
+  { id: 'pilotenbrille', name: 'Pilotenbrille', fach: 'augen', preis: 900 },
+  { id: 'monokel', name: 'Monokel', fach: 'augen', preis: 2000 },
+  { id: 'krawatte', name: 'Krawatte', fach: 'hals', preis: 400 },
+  { id: 'schal', name: 'Schal', fach: 'hals', preis: 450 },
+  { id: 'fliege', name: 'Fliege', fach: 'hals', preis: 600 },
+  { id: 'perlenkette', name: 'Perlenkette', fach: 'hals', preis: 1800 },
+  { id: 'goldkette', name: 'Goldkette', fach: 'hals', preis: 2500 },
+  { id: 'lolli', name: 'Lolli', fach: 'mund', preis: 150 },
+  { id: 'zigarre', name: 'Zigarre', fach: 'mund', preis: 1500 },
+];
+export const accNr = id => ACCESSOIRES.find(a => a.id === id);
+
+// Aus deinem gespeicherten Charakter die Figur bauen. acc ist ein Objekt { fach: id }.
 export function deineFigur(c) {
-  const o = OUTFITS.find(x => x.id === c.outfit) || OUTFITS[0];
-  return { kind: c.tier, fur: c.farbe, body: o.body, shirt: o.shirt, acc: c.acc || null };
+  const o = OUTFITS.find(x => x.id === c.outfit) || OUTFITS[0], acc = c.acc || {};
+  return { kind: c.tier, fur: c.farbe, body: o.body, shirt: o.shirt, acc: REIHENFOLGE.map(f => acc[f]).filter(Boolean) };
 }
+
+// Der Strategie-Lehrer
+export const LEHRER = { name: 'Professor Uhu', kind: 'eule', body: 'weste', fur: '#8d6e63', shirt: '#6b4f2e', acc: ['fliege', 'nerdbrille', 'doktorhut'] };

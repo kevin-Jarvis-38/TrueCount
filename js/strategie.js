@@ -62,9 +62,67 @@ export function lehrerZug(karten, up, m, tc) {
     if (a.ab !== undefined ? tc < a.ab : tc > a.bis) continue;
     if (!erlaubt(a.z) || a.z === basis || (basis === 'R' && a.z !== 'R')) continue;
     const grenze = a.ab !== undefined ? `ab True Count ${tcText(a.ab)}` : `bei True Count ${tcText(a.bis)} und weniger`;
-    return { zug: a.z, abweichung: true, text: `Abweichung: ${paar && a.paar ? `${paar}er-Paar` : summe} gegen ${upText(u)} – ${grenze} heißt es <b>${NAME[a.z]}</b> statt ${NAME[basis]}.` };
+    return { zug: a.z, basis, grenze, abweichung: true, text: `Abweichung: ${paar && a.paar ? `${paar}er-Paar` : summe} gegen ${upText(u)} – ${grenze} heißt es <b>${NAME[a.z]}</b> statt ${NAME[basis]}.` };
   }
-  return { zug: basis, abweichung: false, text: erklaerung(basis, summe, soft, paar, u) };
+  return { zug: basis, basis, abweichung: false, text: erklaerung(basis, summe, soft, paar, u) };
+}
+
+// ---------- Ausführliche Erklärung für Professor Uhu ----------
+// So oft überkauft sich der Dealer mit dieser offenen Karte (ohne Hole Card, steht auf Soft 17), gerundet in Prozent
+const DEALER_BUST = { 2: 35, 3: 38, 4: 40, 5: 43, 6: 42, 7: 26, 8: 24, 9: 23, 10: 21, 11: 17 };
+// So oft geht eine harte Summe mit der nächsten Karte über 21 (Ass zählt dann 1, 10/B/D/K sind 4 von 13 Kartenarten)
+const risiko = s => s <= 11 ? 0 : Math.round((Math.max(0, 9 - (21 - s)) + 4) / 13 * 100);
+const upName = u => u === 11 ? 'ein Ass' : u === 10 ? 'eine 10 (oder ein Bild)' : `eine ${u}`;
+const PAAR_MERK = {
+  2: '2er und 3er teilt man gegen 2 bis 7.', 3: '2er und 3er teilt man gegen 2 bis 7.', 4: '4er teilt man nur gegen 5 und 6.',
+  5: '5er teilt man nie. Spiel sie wie eine 10.', 6: '6er teilt man gegen 2 bis 6.', 7: '7er teilt man gegen 2 bis 7.',
+  9: '9er teilt man gegen 2 bis 9, außer gegen 7 (da reichen deine 18).', 10: 'Zehner teilt man (fast) nie, 20 ist eine super Hand.',
+};
+const paarName = p => p === 11 ? 'Asse' : p === 10 ? 'Zehner' : `${p}er`;
+
+export function lehrerAusfuehrlich(karten, up, m, tc) {
+  const rat = lehrerZug(karten, up, m, tc), z = rat.zug, u = punkte(up.r), { summe: s, soft } = wert(karten);
+  const paar = karten.length === 2 && punkte(karten[0].r) === punkte(karten[1].r) ? punkte(karten[0].r) : 0;
+  const schwach = u <= 6, b = DEALER_BUST[u], r = risiko(s), gegen = upName(u);
+  const hand = paar && m.teilen ? `ein Paar ${paarName(paar)} (zusammen ${soft ? `Soft ${s}` : s})` : soft ? `Soft ${s}` : `${s}`;
+  const a = [`Du hast <b>${hand}</b>, der Dealer zeigt <b>${gegen}</b>.`];
+  a.push(`Mit ${u === 11 ? 'einem Ass' : u === 10 ? 'einer 10 (oder einem Bild)' : `einer ${u}`} überkauft sich der Dealer in etwa <b>${b} %</b> der Fälle. `
+    + (schwach ? 'Das ist eine <b>schwache</b> Karte: Er muss bis 17 ziehen, und von 2 bis 6 aus geht das oft schief.'
+      : u <= 8 ? 'Das ist eine <b>mittlere</b> Karte: Rechne damit, dass er bei 17 oder 18 landet.'
+      : 'Das ist eine <b>starke</b> Karte: Meistens kommt er auf 19, 20 oder 21.')
+    + ' Faustregel: Die nächste Karte ist oft eine 10, denn 10, Bube, Dame und König zählen alle 10.');
+  if (soft) a.push('„Soft“ heißt: Dein Ass zählt gerade als 11. Würdest du über 21 kommen, zählt es einfach als 1. Mit einer Karte kannst du dich also <b>nicht überkaufen</b>.');
+  else if (s <= 11) a.push(`Mit ${s} kannst du dich mit einer Karte <b>nicht überkaufen</b>.${s >= 9 ? ` Kommt eine 10, hast du ${s + 10}.` : ''}`);
+  else if (s < 21) a.push(`Nimmst du eine Karte, überkaufst du dich mit etwa <b>${r} %</b>: Jede Karte ab ${22 - s} ist zu viel.`);
+
+  const warum = {
+    H: soft ? 'Ziehen kostet dich nichts, schlimmstenfalls zählt das Ass als 1. Stehen bleiben wäre hier zu wenig.'
+      : s <= 11 ? 'Du riskierst nichts und machst deine Hand besser.'
+      : `Bleibst du stehen, gewinnst du nur, wenn sich der Dealer überkauft. Das passiert hier nur in etwa ${b} % der Fälle. Das Risiko beim Ziehen ist kleiner als die fast sichere Niederlage.`,
+    S: s >= 17 && !soft ? `${s} ist eine fertige Hand. Mit einer weiteren Karte würdest du dich zu ${r} % überkaufen.`
+      : soft ? `Soft ${s} ist eine gute Hand. Gegen ${gegen} reicht das.`
+      : `Lass den Dealer das Risiko tragen: Er muss ziehen und überkauft sich oft. Du würdest dich dagegen mit ${r} % selbst überkaufen.`,
+    D: 'Verdoppeln heißt: Du legst noch einmal denselben Einsatz dazu und bekommst <b>genau eine</b> Karte. Das lohnt sich, wenn du mit einer Karte gute Chancen auf eine starke Hand hast. '
+      + (s === 10 || s === 11 ? `Mit ${s} reicht schon eine 10 für ${s + 10}.` : schwach ? 'Dazu ist der Dealer schwach, dann gewinnst du doppelt.' : ''),
+    P: 'Teilen heißt: Aus dem Paar werden zwei Hände, jede mit dem gleichen Einsatz. '
+      + (paar === 11 ? 'Zwei Asse sind zusammen nur 12. Getrennt startet jede Hand mit einem Ass, und mit einer 10 dazu hast du 21.'
+        : paar === 8 ? 'Zusammen sind es 16, die schlechteste Hand im Spiel. Getrennt startet jede Hand mit 8, daraus wird oft 18.'
+        : schwach ? 'Der Dealer ist schwach, mit zwei Händen holst du doppelt so viel aus seiner Schwäche.' : `Zwei Hände mit je ${paar} sind besser als ${s} zusammen.`),
+    R: `Aufgeben heißt: Die Hand ist sofort vorbei und du bekommst den <b>halben Einsatz</b> zurück. Das lohnt sich nur, wenn du sonst öfter als jedes zweite Mal verlierst, und genau das ist bei ${s} gegen ${gegen} so.`,
+  }[z];
+  a.push(`<b>Darum: ${NAME[z]}.</b> ${warum}`);
+  if (rat.abweichung) a.push(`🧮 Hier macht der Count den Unterschied. Normalerweise wäre <b>${NAME[rat.basis]}</b> richtig. Bei True Count ${tcText(tc)} sind ${tc > 0 ? 'viele hohe Karten (10er und Asse)' : 'viele kleine Karten'} übrig, deshalb spielt man ${rat.grenze} <b>${NAME[z]}</b>.`);
+
+  const merk = paar === 11 || paar === 8 ? 'Asse und 8er werden immer geteilt.'
+    : paar && m.teilen ? PAAR_MERK[paar]
+    : z === 'R' ? 'Aufgeben nur mit 15 gegen 10 und mit 16 gegen 9, 10 oder Ass.'
+    : soft ? 'Soft 17 und weniger: nie stehen bleiben. Soft 19 und mehr: immer stehen bleiben. Bei Soft 18 kommt es auf den Dealer an.'
+    : s >= 17 ? 'Ab einer harten 17 bleibt man immer stehen.'
+    : s >= 12 ? 'Steife Hand (12 bis 16): gegen 2 bis 6 bleiben, gegen 7 bis Ass ziehen. Ausnahme: 12 gegen 2 oder 3 → ziehen.'
+    : s >= 9 ? '9, 10 und 11 sind Verdoppel-Hände, vor allem gegen schwache Dealer-Karten.'
+    : 'Bis 8 nimmt man immer eine Karte.';
+  a.push(`💡 <b>Merksatz:</b> ${merk}`);
+  return { zug: z, absaetze: a };
 }
 
 function erklaerung(z, s, soft, paar, u) {

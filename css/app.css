@@ -8,6 +8,7 @@ body {
   -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: manipulation;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
+[hidden] { display: none !important; }
 .hit { --c: var(--hit); } .stand { --c: var(--stand); } .dbl { --c: var(--dbl); } .split { --c: var(--split); }
 .aux { --c: var(--auxc); } .num { --c: var(--num); }
 
@@ -38,9 +39,12 @@ body[data-screen=tisch] #app { display: grid; }
 #lobby > * { max-width: 560px; margin-left: auto; margin-right: auto; }
 .logo { display: flex; align-items: center; justify-content: space-between; color: #fff3c4; font-size: 34px; text-shadow: 3px 3px 0 var(--ink); margin-bottom: 10px; }
 .logo b { color: var(--acc); font-weight: normal; }
-.logo .tc { display: inline-block; background: #c0392b; border: 3px solid var(--ink); border-radius: 10px; padding: 0 6px; margin-right: 4px; box-shadow: 0 4px 0 var(--ink); }
+.logo > div { display: flex; align-items: center; gap: 6px; }
+.logo .tc { width: 46px; height: 46px; border-radius: 12px; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); margin-right: 4px; }
 .logo em { font-style: normal; font-size: 14px; background: #e63946; color: #fff; border: 3px solid var(--ink); border-radius: 10px; padding: 4px 8px; text-shadow: none; }
-.profil { display: flex; gap: 10px; align-items: center; padding: 10px; }
+.profil { display: flex; gap: 10px; align-items: center; padding: 10px; width: 100%; text-align: left; font: inherit; color: var(--ink); }
+.profil:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.pdaten .mehr { display: block; margin-top: 8px; font: 700 12px system-ui, sans-serif; font-style: normal; color: #1f6f8b; }
 .profil .ava-gross { width: 86px; height: 112px; flex: none; }
 .pdaten { flex: 1; min-width: 0; }
 .pdaten b { font-size: 18px; font-weight: normal; }
@@ -88,7 +92,6 @@ body[data-screen=tisch] #app { display: grid; }
 #main .btn { font-size: 19px; }
 #main .s { grid-row: 2; }
 #app[data-modus=setzen] .z, #app[data-modus=zug] .s { display: none; }
-.admin-count { display: inline-block; background: #e63946; color: #fff; border-radius: 6px; padding: 0 5px; margin-left: 4px; font-size: 11px; }
 
 @media (orientation: landscape) {
   #app { grid-template: "hud hud hud" auto "aux stage main" minmax(0, 1fr) / minmax(112px, 17vw) 1fr minmax(128px, 19vw); }
@@ -169,11 +172,11 @@ body[data-screen=tisch] #app { display: grid; }
 .farben { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
 .farbe { width: 40px; height: 40px; border-radius: 50%; background: var(--c); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
 .farbe.an { outline: 4px solid var(--acc); outline-offset: 2px; }
-.waren { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.waren { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
 .ware { display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(0,0,0,.06); border-radius: 12px; padding: 8px; text-align: center; }
-.ware svg { width: 74px; height: 98px; }
+.ware svg { width: 66px; height: 87px; }
 .ware b { font-weight: normal; font-size: 14px; }
-.ware .btn { width: 100%; min-height: 38px; font-size: 14px; }
+.ware .btn { width: 100%; min-height: 36px; font-size: 13px; }
 
 /* Erfolge */
 .erfolge { display: grid; gap: 6px; }
@@ -222,3 +225,68 @@ body[data-screen=tisch] #app { display: grid; }
 .tr-verlauf span { font: 700 13px system-ui, sans-serif; padding: 3px 6px; border-radius: 6px; background: rgba(0,0,0,.07); }
 .tr-verlauf i { font-style: normal; font-size: 10px; margin-left: 3px; }
 .tr-verlauf .hl1 i { color: #1b7a43; } .tr-verlauf .hl-1 i { color: #c1121f; }
+
+/* ---------- Tisch: i-Knopf, Plus-Plätze, Hilfen-Zeile ---------- */
+#aux .tip { padding-right: 46px; }
+#aux .info { position: absolute; right: 13px; top: 6px; width: 30px; height: 30px; min-height: 0; flex: none; padding: 0; border-radius: 50%;
+  font: 800 18px Georgia, serif; font-style: italic; background: #3a86ff; color: #fff; box-shadow: 0 3px 0 var(--ink); animation: puls 1.6s infinite; }
+@keyframes puls { 50% { transform: scale(1.12); } }
+#scene .tippbar { cursor: pointer; }
+.tk-kopf .hilfen { display: block; margin-top: 2px; opacity: .75; }
+@media (orientation: landscape) { #aux .tip { padding-right: 10px; } #aux .info { position: static; width: auto; height: min(44px, 11vh); border-radius: 16px; animation: none; } }
+
+/* ---------- Professor Uhu ---------- */
+#uhu { position: fixed; inset: 0; z-index: 25; display: none; background: rgba(0,0,0,.6);
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(6px + env(safe-area-inset-bottom)); }
+#uhu.open { display: flex; flex-direction: column; justify-content: flex-end; }
+.uhu-figur { order: 2; width: 132px; text-align: center; animation: reinlaufen .5s ease-out both; }
+.uhu-figur svg { width: 132px; height: 172px; display: block; }
+.uhu-figur b { display: inline-block; margin-top: -26px; position: relative; font-weight: normal; font-size: 14px; background: var(--panel); border: 3px solid var(--ink); border-radius: 10px; padding: 2px 8px; }
+@keyframes reinlaufen { from { transform: translateX(-140%) rotate(-12deg); } 70% { transform: translateX(6%) rotate(3deg); } }
+.uhu-blase { order: 1; position: relative; min-height: 0; display: flex; flex-direction: column; margin: 0 0 16px; animation: blase .3s .35s ease-out both; }
+.uhu-blase::after { content: ''; position: absolute; left: 52px; bottom: -14px; width: 24px; height: 24px; background: var(--panel);
+  border-right: 3px solid var(--ink); border-bottom: 3px solid var(--ink); transform: rotate(45deg) skew(10deg, 10deg); }
+.uhu-text { min-height: 0; overflow-y: auto; border-radius: 22px; padding: 14px 16px 16px; max-width: 620px; width: 100%; margin: 0 auto; }
+.uhu-text h2 { margin: 0 0 8px; font-size: 24px; font-weight: normal; }
+.uhu-text p { margin: 0 0 10px; font: 500 15px/1.45 system-ui, sans-serif; }
+@keyframes blase { from { transform: scale(.6); opacity: 0; } }
+@media (orientation: landscape) {
+  #uhu.open { flex-direction: row; align-items: flex-end; gap: 6px; }
+  .uhu-figur { order: 1; flex: none; }
+  .uhu-blase { order: 2; flex: 1; max-height: calc(100% - 30px); margin: 0 0 30px; }
+  .uhu-blase::after { left: -11px; bottom: 40px; border: 0; border-left: 3px solid var(--ink); border-bottom: 3px solid var(--ink); }
+}
+
+/* ---------- Profil ---------- */
+.prof-kopf { display: flex; gap: 12px; align-items: center; margin: 6px 0 12px; }
+.prof-kopf .vorschau svg { width: 96px; height: 126px; }
+.prof-kopf > div:last-child { flex: 1; min-width: 0; }
+.prof-kopf b { display: block; font-size: 24px; font-weight: normal; }
+.prof-kopf span { font: 700 14px system-ui, sans-serif; opacity: .7; }
+.prof-kopf small { display: block; font: 600 12px system-ui, sans-serif; opacity: .7; margin-top: 4px; }
+.werte { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.wert { display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,.06); border-radius: 12px; padding: 8px 10px; }
+.wert > span { font-size: 24px; }
+.wert small { display: block; font: 700 11px system-ui, sans-serif; opacity: .65; text-transform: uppercase; letter-spacing: .4px; }
+.wert b { display: block; font-size: 18px; font-weight: normal; }
+.wert em { display: block; font: 500 11px system-ui, sans-serif; font-style: normal; opacity: .6; }
+h3.fach { margin: 14px 0 6px; font-size: 17px; font-weight: normal; }
+.ware.an { background: rgba(255,204,0,.3); outline: 3px solid var(--acc); }
+.erf .bar { margin-top: 5px; height: 7px; }
+.erf .stand { opacity: .7; margin-top: 2px; }
+.erf.ja .bar i { background: #2a9d5c; }
+
+/* ---------- Training: Zählhilfe und Zählwert-Tippen ---------- */
+.legende { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.legende span { font: 700 13px system-ui, sans-serif; color: #fff; padding: 5px 9px; border-radius: 10px; border: 2px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.legende b { font-family: 'Luckiest Guy', sans-serif; font-weight: normal; font-size: 15px; margin-right: 5px; }
+.legende .p { background: #2a9d5c; } .legende .n { background: #8d99ae; } .legende .m { background: #e63946; }
+.tr-pad { width: 100%; max-width: 420px; }
+.tr-pad .pad .btn { min-height: 46px; }
+.tipp-knoepfe { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 420px; }
+.tipp-knoepfe .btn { min-height: 76px; font-size: 32px; }
+.tipp-knoepfe .m { --c: #e63946; } .tipp-knoepfe .n { --c: #8d99ae; } .tipp-knoepfe .p { --c: #2a9d5c; }
+.tr-feld.ok { animation: gut .25s; } .tr-feld.falsch { animation: wackel .35s; }
+@keyframes gut { 50% { transform: scale(1.06); } }
+.tr-loesung { min-height: 24px; color: #fff3c4; font: 700 16px system-ui, sans-serif; text-shadow: 1px 1px 0 var(--ink); text-align: center; }
+.tr-drill-info { position: absolute; right: 0; top: 0; }

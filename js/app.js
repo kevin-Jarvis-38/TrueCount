@@ -1,18 +1,28 @@
 // TrueCount – Hauptprogramm: Lobby, Tisch, Count-Fragen, Lehrer, XP, Shop, Erfolge, Optionen und Admin-Modus.
 import { Tisch, ZUG, istBJ } from './tisch.js';
 import { wert, punkte } from './karten.js';
-import { lehrerZug, zugName, versicherungRichtig, einsatzBewerten } from './strategie.js';
+import { lehrerZug, lehrerAusfuehrlich, zugName, versicherungRichtig, einsatzBewerten } from './strategie.js';
 import { zeichne, CHIPC } from './szene.js';
 import { TISCHE, NPC, tischNr } from './tische.js';
-import { figurBild, deineFigur, TIERE, OUTFITS, ACCESSOIRES } from './figuren.js';
+import { figurBild, deineFigur, TIERE, OUTFITS, ACCESSOIRES, FAECHER, accNr } from './figuren.js';
 import * as pr from './profil.js';
 import { sound, aktivieren, lautstaerke, ambienteStart, ambienteStop } from './sound.js';
-import { $, fmt, zahl, vz, pause, zufallZwischen, toast, sheet, sheetZu, sheetOffen, wackeln, zahlenfeld, taste } from './ui.js';
+import { $, fmt, zahl, vz, pause, zufallZwischen, toast, sheet, sheetZu, sheetOffen, wackeln, zahlenfeld, taste, uhu, uhuWeg, uhuOffen } from './ui.js';
 import { trainingMenue, trainingKlick } from './training.js';
 
 const TEMPO = [['Langsam', 900], ['Normal', 600], ['Schnell', 350]];
 const SPRUCH = { karte: 'Karte!', bleiben: 'Bleib!', verdoppeln: 'Doppelt!', teilen: 'Teilen!', aufgeben: 'Ich pass …' };
 const E = pr.E;
+
+// Hilfen gibt es nur an den ersten Tischen (Wunsch vom 23.10.): Zählwerte auf den Karten bis Tisch 2,
+// Deck-Anzeige und Lehrer bis Tisch 3, Professor Uhu (der i-Knopf) nur an Tisch 1. Die höheren Tische werden dadurch schwerer.
+const HILFE_BIS = { zaehlwerte: 2, decks: 3, lehrer: 3, uhu: 1 };
+const hilfe = (k, nr = T?.nr) => nr <= HILFE_BIS[k];
+const lehrerAn = () => E.lehrer && hilfe('lehrer');
+function hilfenText(nr) {
+  const l = [hilfe('zaehlwerte', nr) && 'Zählwerte', hilfe('decks', nr) && 'Deck-Anzeige', hilfe('lehrer', nr) && 'Lehrer', hilfe('uhu', nr) && 'Professor Uhu'].filter(Boolean);
+  return l.length ? `Hilfen: ${l.join(', ')}` : 'Keine Hilfen mehr – jetzt zählst du allein';
+}
 
 // ---------- Meldungen aus dem Spielstand ----------
 function meldungenZeigen() {
@@ -44,8 +54,9 @@ function lobbyZeigen() {
   $('#profil').innerHTML = (P.figur ? figurBild(deineFigur(P.figur), 'ava-gross') : '')
     + `<div class="pdaten"><b>Level ${f.level} · ${f.titel}</b><div class="bar"><i style="width:${(f.anteil * 100).toFixed(1)}%"></i></div>`
     + `<small>${zahl(P.xp, 0)} XP · noch ${zahl(f.fehlt, 0)} bis Level ${f.level + 1}</small>`
-    + `<div class="zahlen"><span title="Guthaben">💰 <b>${fmt(P.geld)}</b></span><span title="Serien-Bonus">🔥 ×${zahl(pr.serienFaktor(P.serie))}</span>`
-    + `<span title="Count-Quote">🎯 ${Math.round(pr.quote() * 100)} %</span><span title="Pleiten">💸 ${P.pleiten}</span></div></div>`;
+    + `<div class="zahlen"><span>💰 <b>${fmt(P.geld)}</b></span><span>🔥 Serie ×${zahl(pr.serienFaktor(P.serie))}</span>`
+    + `<span>🎯 Quote ${Math.round(pr.quote() * 100)} %</span><span>💸 ${P.pleiten} ${P.pleiten === 1 ? 'Pleite' : 'Pleiten'}</span></div>`
+    + `<em class="mehr">Profil & Charakter ›</em></div>`;
   $('#tischliste').innerHTML = TISCHE.map(tischKarte).join('');
   meldungenZeigen();
   if (!P.figur) figurWahl();
@@ -62,7 +73,7 @@ function tischKarte(t) {
   } else if (P.sitzung && !hier) unten = `<small>Du sitzt noch im ${tischNr(P.sitzung.tisch).name}.</small>`;
   else if (!hier && P.geld < t.sitz) unten = `<small>Zum Hinsetzen brauchst du ${fmt(t.sitz)}.</small>`;
   else unten = `<button class="btn hit" data-sitz="${t.nr}">${hier ? `Weiterspielen<small>Pott +${P.sitzung.pott} XP</small>` : 'Hinsetzen'}</button>`;
-  return `<div class="pn tischkarte ${offen ? '' : 'zu'}" style="--filz:${t.filz}"><div class="tk-kopf"><b>${offen ? '' : '🔒 '}${t.name}</b><small>Tisch ${t.nr} · ${info}</small></div>${unten}</div>`;
+  return `<div class="pn tischkarte ${offen ? '' : 'zu'}" style="--filz:${t.filz}"><div class="tk-kopf"><b>${offen ? '' : '🔒 '}${t.name}</b><small>Tisch ${t.nr} · ${info}</small><small class="hilfen">${hilfenText(t.nr)}</small></div>${unten}</div>`;
 }
 
 // ---------- Charakter wählen (einmal am Anfang) ----------
@@ -77,9 +88,10 @@ function figurWahl() {
 }
 
 // ---------- Tisch aufbauen ----------
-let tisch, T, KONTO, DU = [], ICH = 0, sprech = null, laeuft = false, runde = {};
+// DU = deine Plätze (eine Hand je Platz), ICH = dein Hauptplatz, FREI = leere Plätze, auf die du noch eine Hand legen kannst
+let tisch, T, KONTO, DU = [], FREI = [], ICH = 0, sprech = null, laeuft = false, runde = {};
 const sitzung = () => pr.P.sitzung;
-const anzahlHaende = () => Math.min(T.hands[1], Math.max(T.hands[0], pr.P.einsatz['h' + T.nr] || T.hands[0]));
+const mehrHaende = () => T.hands[1] > 1;
 const einsatzWert = () => pr.P.einsatz[T.nr] || T.min * 2;
 
 // Sitzordnung: Bei Tischen mit einer Hand kannst du deinen Platz frei wählen
@@ -92,12 +104,15 @@ function sitzordnung() {
   return a;
 }
 function tischBauen(alterSchuh = null) {
-  const a = sitzordnung(), mitte = (a.length - 1) / 2;
-  const frei = a.map((k, i) => k === 'du' ? i : -1).filter(i => i >= 0).sort((x, y) => Math.abs(x - mitte) - Math.abs(y - mitte));
-  DU = frei.slice(0, anzahlHaende()).sort((x, y) => x - y);
-  ICH = frei[0];
+  const a = sitzordnung(), mitte = (a.length - 1) / 2, naheMitte = (x, y) => Math.abs(x - mitte) - Math.abs(y - mitte);
+  const moeglich = a.map((k, i) => k === 'du' ? i : -1).filter(i => i >= 0);
+  // Mehrere Hände: Die gewählten Plätze stehen im Spielstand, sonst spielst du eine Hand am mittleren Platz
+  const wahl = mehrHaende() ? (pr.P.einsatz['s' + T.nr] || []).filter(i => moeglich.includes(i)).slice(0, T.hands[1]) : [];
+  DU = (wahl.length ? wahl : [[...moeglich].sort(naheMitte)[0]]).sort((x, y) => x - y);
+  ICH = [...DU].sort(naheMitte)[0];
+  FREI = moeglich.filter(i => !DU.includes(i));
   const plaetze = a.map((k, i) => {
-    if (k === 'du') return DU.includes(i) ? { name: i === ICH ? 'Du' : '', figur: i === ICH ? deineFigur(pr.P.figur) : null, art: 'mensch', konto: KONTO } : { name: '', art: 'leer' };
+    if (k === 'du') return DU.includes(i) ? { name: '', figur: null, art: 'mensch', konto: KONTO } : { name: '', art: 'leer' };
     return k ? { ...NPC[k], figur: NPC[k], art: 'npc' } : { name: '', art: 'leer' };
   });
   const regeln = { name: T.name, min: T.min, max: T.max, decks: E.decks || T.decks, schnitt: E.schnitt };
@@ -127,22 +142,22 @@ const zwischenRunden = () => tisch.phase === 'setzen' || tisch.phase === 'fertig
 const meinZug = () => tisch.phase === 'spielen' && DU.includes(tisch.ap);
 const handText = k => { const { summe, soft } = wert(k); return soft && summe < 21 ? `${summe - 10}/${summe}` : summe; };
 function hinweis() {
-  const ph = tisch.phase, admin = pr.istAdmin() && E.countAnzeige ? ` <span class="admin-count">RC ${vz(tisch.rc)} · TC ${vz(tisch.trueCount())} · ${zahl(tisch.restDecks())} Decks</span>` : '';
-  if (ph === 'setzen') return `🃏 Tipp auf <b>Austeilen</b> – oder ändere vorher deinen Einsatz.${admin}`;
+  const ph = tisch.phase;
+  if (ph === 'setzen') return mehrHaende() && DU.length < T.hands[1] ? '🃏 <b>+</b> = noch eine Hand, dann <b>Austeilen</b>' : `🃏 Tipp auf <b>Austeilen</b> – oder ändere vorher deinen Einsatz.`;
   if (ph === 'fertig') {
     const d = wert(tisch.dealer).summe, dealer = d > 21 ? 'Dealer überkauft' : `Dealer ${tisch.dealerBJ ? 'Blackjack' : d}`;
     const g = DU.reduce((a, i) => a + tisch.plaetze[i].gewinn, 0), bj = DU.some(i => tisch.plaetze[i].haende.some(h => h.ergebnis === 'blackjack'));
-    return `${dealer} · ${bj && g > 0 ? '🎉 <b>Blackjack!</b>' : g > 0 ? '🎉 Gewonnen:' : g < 0 ? '😬 Verloren:' : '🤝 Unentschieden'} ${g ? `<b>${g > 0 ? '+' : '−'}${fmt(Math.abs(g))}</b>` : ''}${admin}`;
+    return `${dealer} · ${bj && g > 0 ? '🎉 <b>Blackjack!</b>' : g > 0 ? '🎉 Gewonnen:' : g < 0 ? '😬 Verloren:' : '🤝 Unentschieden'} ${g ? `<b>${g > 0 ? '+' : '−'}${fmt(Math.abs(g))}</b>` : ''}`;
   }
-  if (ph === 'versicherung') return `🛡️ Der Dealer zeigt ein Ass …${admin}`;
+  if (ph === 'versicherung') return `🛡️ Der Dealer zeigt ein Ass …`;
   if (meinZug()) {
     const p = tisch.plaetze[tisch.ap], h = p.haende[tisch.ah], up = tisch.dealer[0], n = p.haende.length;
     const wo = DU.length > 1 ? `Hand ${DU.indexOf(tisch.ap) + 1}${n > 1 ? `.${tisch.ah + 1}` : ''}: ` : n > 1 ? `Hand ${tisch.ah + 1} von ${n}: ` : 'Du bist dran: ';
-    return `👉 ${wo}<b>${handText(h.karten)}</b> gegen <b>${up.r === 'A' ? 'Ass' : punkte(up.r)}</b>${admin}`;
+    return `👉 ${wo}<b>${handText(h.karten)}</b> gegen <b>${up.r === 'A' ? 'Ass' : punkte(up.r)}</b>`;
   }
-  if (ph === 'spielen') return `⏳ ${tisch.plaetze[tisch.ap].name} ist dran …${admin}`;
-  if (ph === 'dealer') return `⏳ Frack-Fred deckt auf …${admin}`;
-  return `⏳ Frack-Fred teilt aus …${admin}`;
+  if (ph === 'spielen') return `⏳ ${tisch.plaetze[tisch.ap].name} ist dran …`;
+  if (ph === 'dealer') return `⏳ Frack-Fred deckt auf …`;
+  return `⏳ Frack-Fred teilt aus …`;
 }
 function hudZeigen() {
   const P = pr.P, f = pr.fortschritt(P.xp), s = sitzung();
@@ -158,9 +173,17 @@ function render() {
   if (!tisch) return;
   // hochkant liegen die Knöpfe über dem unteren Teil der Szene
   const verdeckt = innerWidth > innerHeight ? 0 : $('#stage').getBoundingClientRect().bottom - $('#aux').getBoundingClientRect().top;
-  const zw = zwischenRunden();
-  zeichne($('#scene'), tisch, { nr: T.nr, filz: T.filz, sprech, verdeckt, zaehlwerte: E.zaehlwerte, setzen: zw ? DU : [] });
+  const zw = zwischenRunden(), wechseln = zw && !laeuft && mehrHaende();
+  // Deine Figur sitzt an der Hand, die gerade dran ist, sonst an deinem Hauptplatz
+  const bei = meinZug() ? tisch.ap : ICH;
+  DU.forEach(i => { const p = tisch.plaetze[i]; p.figur = i === bei ? deineFigur(pr.P.figur) : null; p.name = i === bei ? 'Du' : ''; });
+  zeichne($('#scene'), tisch, {
+    nr: T.nr, filz: T.filz, sprech, verdeckt, zaehlwerte: E.zaehlwerte && hilfe('zaehlwerte'), decks: hilfe('decks'),
+    admin: pr.istAdmin() && E.countAnzeige, setzen: zw ? DU : [],
+    plus: wechseln && DU.length < T.hands[1] ? FREI : [], minus: wechseln && DU.length > 1 ? DU.filter(i => i !== ICH) : [],
+  });
   const m = meinZug() ? tisch.moeglich() : {};
+  $('[data-a=info]').hidden = !(hilfe('uhu') && meinZug());
   $('#app').dataset.modus = zw ? 'setzen' : 'zug';
   document.querySelectorAll('#main .z').forEach(b => { b.disabled = !m[b.dataset.a]; });
   $('[data-a=aufgeben]').disabled = !m.aufgeben;
@@ -226,11 +249,13 @@ function austeilen() {
   tisch.start();
   runde = { tc, allIn: KONTO.geld === 0, versichertBeiTc: false };
   sound.chip();
-  if (E.lehrer) { // Einsatz nach dem Count bewerten
+  if (n >= 3) pr.erfolg('mehrhaendig');
+  if (E.lehrer) { // Einsatz nach dem Count bewerten. Ab Tisch 4 gibt es die XP still, ohne Hinweis.
     const b = einsatzBewerten(e, tc, r.min, r.max);
-    if (b.ok) { pr.xpPott(3); if (tc >= 2) toast(`💰 ${b.text} <b>+3 XP</b>`); }
-    else toast(`💡 ${b.text}`, { ms: 3600 });
+    if (b.ok) { pr.xpPott(3); if (tc >= 2 && lehrerAn()) toast(`💰 ${b.text} <b>+3 XP</b>`); }
+    else if (lehrerAn()) toast(`💡 ${b.text}`, { ms: 3600 });
   }
+  meldungenZeigen();
   s.naechsteFrage--;
   pr.P.geld = KONTO.geld; // wer mitten in der Runde geht, verliert den Einsatz – wie im Casino
   pr.speichern();
@@ -244,18 +269,40 @@ function spielerZug(a) {
   const i = tisch.ap, h = tisch.plaetze[i].haende[tisch.ah], rat = lehrerZug(h.karten, tisch.dealer[0], tisch.moeglich(), tisch.trueCount());
   if (!tisch.aktion(i, a)) return;
   sound[a === 'teilen' || a === 'verdoppeln' ? 'chip' : a === 'karte' ? 'karte' : 'klick']();
-  if (E.lehrer) {
+  if (E.lehrer) { // ab Tisch 4 schweigt der Lehrer, die XP für richtige Züge gibt es trotzdem
     if (ZUG[rat.zug] === a) {
       pr.xpPott(1);
       zaehlerErfolg('zugSerie', 1, [[50, 'lehrers_liebling']]);
-      if (rat.abweichung) toast(`✅ Stark! ${rat.text} <b>+1 XP</b>`, { ms: 3600, vorne: true });
+      if (rat.abweichung && lehrerAn()) toast(`✅ Stark! ${rat.text} <b>+1 XP</b>`, { ms: 3600, vorne: true });
     } else {
       pr.P.stat.zugSerie = 0;
-      toast(`👨‍🏫 Besser: <b>${zugName(rat.zug)}</b>. ${rat.text}`, { ms: 4200, ton: 'falsch', vorne: true });
+      if (lehrerAn()) toast(`👨‍🏫 Besser: <b>${zugName(rat.zug)}</b>. ${rat.text}`, { ms: 4200, ton: 'falsch', vorne: true });
     }
   }
   render();
   ablauf();
+}
+
+// Der i-Knopf (nur an Tisch 1): Professor Uhu kommt ins Bild und erklärt ausführlich, was du tun sollst und warum.
+// Das Spiel wartet ohnehin auf deinen Zug, bis er wieder weg ist.
+function uhuFragen() {
+  if (!meinZug() || !hilfe('uhu')) return;
+  const h = tisch.plaetze[tisch.ap].haende[tisch.ah], e = lehrerAusfuehrlich(h.karten, tisch.dealer[0], tisch.moeglich(), tisch.trueCount());
+  uhu(`Mein Tipp: ${zugName(e.zug)}`, e.absaetze, { knopf: 'Alles klar, weiter!' });
+}
+
+// Plus auf einem leeren Platz: noch eine Hand dazu. Rotes ×: die Hand wieder weglegen. Geht nur zwischen den Runden.
+function haendeAendern(i, dazu) {
+  if (laeuft || !zwischenRunden() || sheetOffen()) return;
+  if (dazu && (!FREI.includes(i) || DU.length >= T.hands[1])) return;
+  if (!dazu && (!DU.includes(i) || i === ICH)) return;
+  if (dazu && KONTO.geld < einsatzWert() * (DU.length + 1)) return toast(`Für noch eine Hand reicht dein Guthaben nicht (${fmt(einsatzWert())} pro Hand).`, { vorne: true });
+  if (tisch.phase === 'fertig') abraeumen();
+  pr.P.einsatz['s' + T.nr] = dazu ? [...DU, i] : DU.filter(x => x !== i);
+  tischBauen(schuhMerken());
+  pr.speichern();
+  sound[dazu ? 'chip' : 'klick']();
+  render();
 }
 
 function versicherungFragen() {
@@ -270,8 +317,8 @@ function versichern(ja) {
   runde.versichertBeiTc = ja && tc >= 3;
   if (ja) sound.chip();
   if (E.lehrer) {
-    if (richtig) { pr.xpPott(1); if (ja) toast(`✅ Richtig: Bei True Count ${vz(tc)} lohnt sich die Versicherung. <b>+1 XP</b>`); }
-    else toast(`👨‍🏫 ${ja ? `Versicherung lohnt sich erst ab True Count +3 (jetzt ${vz(tc)}).` : `Bei True Count ${vz(tc)} hättest du versichern sollen – ab +3 lohnt es sich.`}`, { ms: 4000, ton: 'falsch', vorne: true });
+    if (richtig) { pr.xpPott(1); if (ja && lehrerAn()) toast(`✅ Richtig: Bei True Count ${vz(tc)} lohnt sich die Versicherung. <b>+1 XP</b>`); }
+    else if (lehrerAn()) toast(`👨‍🏫 ${ja ? `Versicherung lohnt sich erst ab True Count +3 (jetzt ${vz(tc)}).` : `Bei True Count ${vz(tc)} hättest du versichern sollen – ab +3 lohnt es sich.`}`, { ms: 4000, ton: 'falsch', vorne: true });
   }
   render();
   ablauf();
@@ -376,28 +423,25 @@ function antwort(w) {
 }
 
 // ---------- Einsatz ----------
-let draft = [], haendeWahl = 1;
+let draft = [];
 const summe = l => l.reduce((a, b) => a + b, 0);
 function zerlegen(n) { const l = []; for (const c of [...T.chips].sort((a, b) => b - a)) while (n >= c && l.length < 40) { l.push(c); n -= c; } return l; }
 function drawBet() {
-  $('#bsum').textContent = fmt(summe(draft)) + (haendeWahl > 1 ? ` × ${haendeWahl}` : '');
+  $('#bsum').textContent = fmt(summe(draft)) + (DU.length > 1 ? ` × ${DU.length}` : '');
   $('#bpile').innerHTML = draft.slice(-24).map(v => `<span class="mini" style="--cc:${CHIPC[v]}"></span>`).join('') || '<em>Tipp auf die Chips</em>';
-  const hb = $('#b-haende');
-  if (hb) hb.textContent = haendeWahl;
 }
 function betSheet() {
-  haendeWahl = anzahlHaende();
   draft = zerlegen(Math.min(einsatzWert(), KONTO.geld));
   const limit = T.max === Infinity ? `ab ${fmt(T.min)}` : `${fmt(T.min)} – ${fmt(T.max)}`;
   sheet(`<h2>Einsatz</h2><p>${T.name} · ${limit} pro Hand · Guthaben ${fmt(KONTO.geld)}</p>`
-    + (T.hands[1] > 1 ? `<div class="opt"><span>Hände</span><button class="btn aux" data-h="-1">−</button><b id="b-haende"></b><button class="btn aux" data-h="1">+</button></div>` : '')
+    + (mehrHaende() ? `<p>Du spielst <b>${DU.length} ${DU.length === 1 ? 'Hand' : 'Hände'}</b>, jede mit diesem Einsatz. Weitere Hände legst du mit dem <b>+</b> auf einem freien Platz dazu.</p>` : '')
     + `<div class="pile" id="bpile"></div><div class="bsum" id="bsum"></div>`
     + `<div class="chips">${T.chips.map(v => `<button class="chip c${v}" style="--cc:${CHIPC[v]}" data-chip="${v}">${v >= 1000 ? v / 1000 + 'k' : v}</button>`).join('')}</div>`
     + `<div class="row"><button class="btn aux" data-b="undo">↩ Zurück</button><button class="btn aux" data-b="clear">Leeren</button><button class="btn hit" data-b="ok">✓ Setzen</button></div>`);
   drawBet();
 }
 function chipDazu(v) {
-  const grenze = Math.min(T.max, Math.floor(KONTO.geld / haendeWahl));
+  const grenze = Math.min(T.max, Math.floor(KONTO.geld / DU.length));
   if (summe(draft) + v > grenze) return wackeln(grenze < T.max ? `Dafür reicht dein Guthaben nicht (${fmt(KONTO.geld)}).` : `Tischlimit: höchstens <b>${fmt(T.max)}</b> pro Hand`);
   draft.push(v);
   sound.chip();
@@ -406,7 +450,6 @@ function chipDazu(v) {
 function einsatzOk() {
   if (summe(draft) < T.min) return wackeln(`Mindesteinsatz: <b>${fmt(T.min)}</b>`);
   pr.P.einsatz[T.nr] = summe(draft);
-  if (haendeWahl !== anzahlHaende()) { pr.P.einsatz['h' + T.nr] = haendeWahl; if (tisch.phase === 'fertig') abraeumen(); tischBauen(schuhMerken()); }
   pr.speichern();
   sheetZu();
   naechsteRunde();
@@ -418,8 +461,9 @@ const OPT = () => [
   ['decks', 'Decks im Schuh', E.decks ? E.decks : `Tisch (${T ? T.decks : '–'})`],
   ['schnitt', 'Schnittkarte', Math.round(E.schnitt * 100) + ' %'],
   ['tempo', 'Tempo', TEMPO[E.tempo][0]],
-  ['zaehlwerte', 'Zählwerte auf den Karten', E.zaehlwerte, 'Hi-Lo: +1 / 0 / −1'],
-  ['lehrer', 'Strategie-Lehrer', E.lehrer, 'zeigt falsche Züge und bewertet den Einsatz'],
+  ['zaehlwerte', 'Zählwerte auf den Karten', E.zaehlwerte, `Hi-Lo: +1 / 0 / −1 · nur Tisch 1–${HILFE_BIS.zaehlwerte}`],
+  ['legende', 'Zählhilfe im Training', E.legende, 'Blitz-Zählen und Deck-Countdown: welche Karten +1, 0 oder −1 zählen'],
+  ['lehrer', 'Strategie-Lehrer', E.lehrer, `zeigt falsche Züge und bewertet den Einsatz · nur Tisch 1–${HILFE_BIS.lehrer}`],
   ['fragen', 'Count-Fragen', E.fragen, 'True Count vor dem Setzen abfragen'],
   ['ton', 'Ton', E.ton],
   ['lautEffekte', 'Effekte', Math.round(E.lautEffekte * 100) + ' %'],
@@ -469,32 +513,75 @@ function optFertig() {
   render();
 }
 
-// ---------- Shop ----------
-let shopTab = 'outfits';
+// ---------- Kleidung: Shop und Kleiderschrank teilen sich die Karten ----------
+// ansicht merkt sich, welche Einblendung nach einem Klick neu gezeichnet wird
+let ansicht = 'shop', shopTab = 'outfits', profilTab = 'ich';
+const istOutfit = id => OUTFITS.some(o => o.id === id);
+const traegt = (f, it) => istOutfit(it.id) ? f.outfit === it.id : f.acc[it.fach] === it.id;
+function ware(it, mitPreis) {
+  const P = pr.P, f = P.figur, hat = P.besitz.includes(it.id), an = traegt(f, it);
+  const vorschau = deineFigur(istOutfit(it.id) ? { ...f, outfit: it.id } : { ...f, acc: { ...f.acc, [it.fach]: it.id } });
+  const knopf = an ? (istOutfit(it.id) ? `<button class="btn aux" disabled>Trägst du</button>` : `<button class="btn aux" data-ab="${it.fach}">Ablegen</button>`)
+    : hat ? `<button class="btn hit" data-an="${it.id}">Anziehen</button>`
+    : mitPreis ? `<button class="btn dbl" data-kauf="${it.id}" ${pr.kaufbar(it.preis) ? '' : 'disabled'}>${fmt(it.preis)}</button>` : '';
+  return `<div class="ware ${an ? 'an' : ''}">${figurBild(vorschau)}<b>${it.name}</b>${knopf}</div>`;
+}
+// Accessoires nach Fächern: aus jedem Fach kannst du eins tragen (z. B. Cap, Sonnenbrille und Kette zusammen)
+const nachFach = (liste, mitPreis) => Object.entries(FAECHER).map(([fach, name]) => {
+  const teile = liste.filter(a => a.fach === fach);
+  return teile.length ? `<h3 class="fach">${name}</h3><div class="waren">${teile.map(it => ware(it, mitPreis)).join('')}</div>` : '';
+}).join('');
+const tabs = (akt, liste) => `<div class="tabs">${liste.map(([id, name]) => `<button class="btn ${akt === id ? 'hit' : 'aux'}" data-tab="${id}">${name}</button>`).join('')}</div>`;
+
 function shopSheet() {
-  const P = pr.P, f = P.figur, liste = shopTab === 'outfits' ? OUTFITS : ACCESSOIRES;
-  const karte = it => {
-    const hat = P.besitz.includes(it.id), traegt = shopTab === 'outfits' ? f.outfit === it.id : f.acc === it.id;
-    const vorschau = deineFigur(shopTab === 'outfits' ? { ...f, outfit: it.id } : { ...f, acc: it.id });
-    const knopf = traegt ? (shopTab === 'acc' ? `<button class="btn aux" data-ab="1">Ablegen</button>` : `<button class="btn aux" disabled>Trägst du</button>`)
-      : hat ? `<button class="btn hit" data-an="${it.id}">Anziehen</button>`
-      : `<button class="btn dbl" data-kauf="${it.id}" ${pr.kaufbar(it.preis) ? '' : 'disabled'}>${fmt(it.preis)}</button>`;
-    return `<div class="ware">${figurBild(vorschau)}<b>${it.name}</b>${knopf}</div>`;
-  };
-  sheet(`<h2>🛍️ Shop</h2><p>Bezahlt wird mit Chips – aber nur mit dem, was über 1.000 € liegt. Guthaben: <b>${fmt(P.geld)}</b></p>`
-    + `<div class="tabs"><button class="btn ${shopTab === 'outfits' ? 'hit' : 'aux'}" data-tab="outfits">Outfits</button><button class="btn ${shopTab === 'acc' ? 'hit' : 'aux'}" data-tab="acc">Accessoires</button><button class="btn ${shopTab === 'farbe' ? 'hit' : 'aux'}" data-tab="farbe">Farbe</button></div>`
-    + (shopTab === 'farbe' ? `<div class="vorschau">${figurBild(deineFigur(f))}</div><div class="farben">${TIERE[f.tier].farben.map(c => `<button class="farbe ${c === f.farbe ? 'an' : ''}" style="--c:${c}" data-fell="${c}"></button>`).join('')}</div><p>Umfärben ist kostenlos.</p>`
-      : `<div class="waren">${liste.map(karte).join('')}</div>`)
+  ansicht = 'shop';
+  const P = pr.P;
+  sheet(`<h2>🛍️ Shop</h2><p>Bezahlt wird mit Chips – aber nur mit dem, was über 1.000 € liegt. Guthaben: <b>${fmt(P.geld)}</b>. Umfärben und Umziehen geht im Profil.</p>`
+    + tabs(shopTab, [['outfits', 'Outfits'], ['acc', 'Accessoires']])
+    + (shopTab === 'outfits' ? `<div class="waren">${OUTFITS.map(it => ware(it, true)).join('')}</div>` : nachFach(ACCESSOIRES, true))
     + `<button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: lobbyZeigen });
 }
 
-// ---------- Erfolge ----------
-function erfolgeSheet() {
-  const P = pr.P, n = pr.ERFOLGE.filter(e => P.erfolge[e.id]).length;
-  sheet(`<h2>🏆 Erfolge</h2><p>${n} von ${pr.ERFOLGE.length} geschafft · Pleiten: ${P.pleiten} · Hände: ${zahl(P.stat.haende || 0, 0)}</p><div class="erfolge">`
-    + pr.ERFOLGE.map(e => { const d = P.erfolge[e.id]; return `<div class="erf ${d ? 'ja' : ''}"><span>${d ? e.emoji : '🔒'}</span><div><b>${e.name}</b><small>${e.text}</small></div><em>${e.xp} XP</em></div>`; }).join('')
-    + `</div><button class="btn hit voll" data-zu="1">Fertig</button>`);
+// ---------- Profil: Übersicht, Kleiderschrank und Erfolge ----------
+function erfolgeHtml() {
+  return `<div class="erfolge">` + pr.ERFOLGE.map(e => {
+    const d = pr.P.erfolge[e.id], s = pr.erfolgStand(e.id);
+    return `<div class="erf ${d ? 'ja' : ''}"><span>${d ? e.emoji : '🔒'}</span><div><b>${e.name}</b><small>${e.text}</small>`
+      + `<div class="bar"><i style="width:${(s.anteil * 100).toFixed(1)}%"></i></div><small class="stand">${s.text}</small></div><em>${e.xp} XP</em></div>`;
+  }).join('') + '</div>';
 }
+function profilSheet(tab = profilTab) {
+  ansicht = 'profil';
+  profilTab = tab;
+  const P = pr.P, f = P.figur, lv = pr.fortschritt(P.xp), n = pr.ERFOLGE.filter(e => P.erfolge[e.id]).length;
+  const wert = (emoji, name, w, info = '') => `<div class="wert"><span>${emoji}</span><div><small>${name}</small><b>${w}</b>${info ? `<em>${info}</em>` : ''}</div></div>`;
+  let inhalt;
+  if (tab === 'ich') inhalt = `<div class="prof-kopf"><div class="vorschau">${figurBild(deineFigur(f))}</div><div><b>Level ${lv.level}</b><span>${pr.istAdmin() ? 'Admin' : lv.titel}</span>`
+    + `<div class="bar"><i style="width:${(lv.anteil * 100).toFixed(1)}%"></i></div><small>${zahl(P.xp, 0)} XP · noch ${zahl(lv.fehlt, 0)} bis Level ${lv.level + 1}</small></div></div>`
+    + `<div class="werte">`
+    + wert('💰', 'Guthaben', fmt(P.geld), 'deine Chips')
+    + wert('🔥', 'Serien-Bonus', `× ${zahl(pr.serienFaktor(P.serie))}`, 'steigt mit jeder Gewinn-Sitzung')
+    + wert('🎯', 'Count-Quote', `${Math.round(pr.quote() * 100)} %`, `richtige Antworten (letzte ${P.verlauf.length || 0})`)
+    + wert('💸', 'Pleiten', P.pleiten, 'so oft bist du pleite gegangen')
+    + wert('🃏', 'Hände gespielt', zahl(P.stat.haende || 0, 0))
+    + wert('🧮', 'Richtige Counts', zahl(P.stat.countRichtig || 0, 0))
+    + wert('🏆', 'Erfolge', `${n} / ${pr.ERFOLGE.length}`)
+    + wert('🔓', 'Tische offen', `${P.tische.length} / ${TISCHE.length}`)
+    + wert('👕', 'Teile im Schrank', P.besitz.length)
+    + `</div>`;
+  else if (tab === 'schrank') {
+    const outfits = OUTFITS.filter(o => P.besitz.includes(o.id)), acc = ACCESSOIRES.filter(a => P.besitz.includes(a.id));
+    inhalt = `<div class="vorschau">${figurBild(deineFigur(f))}</div>`
+      + `<h3 class="fach">Tier</h3><div class="wahl">${Object.entries(TIERE).map(([k, t]) => `<button class="btn aux ${k === f.tier ? 'an' : ''}" data-ptier="${k}">${t.name}</button>`).join('')}</div>`
+      + `<h3 class="fach">Farbe</h3><div class="farben">${TIERE[f.tier].farben.map(c => `<button class="farbe ${c === f.farbe ? 'an' : ''}" style="--c:${c}" data-fell="${c}" aria-label="Farbe"></button>`).join('')}</div>`
+      + `<h3 class="fach">Outfits</h3><div class="waren">${outfits.map(it => ware(it, false)).join('')}</div>`
+      + (acc.length ? nachFach(acc, false) : '<p>Noch keine Accessoires – im Shop gibt es Caps, Brillen, Ketten und mehr.</p>')
+      + `<button class="btn dbl voll" data-l="shop">🛍️ Zum Shop</button>`;
+  } else inhalt = `<p>${n} von ${pr.ERFOLGE.length} geschafft. Der Balken zeigt, wie weit du bei jedem Erfolg bist.</p>` + erfolgeHtml();
+  sheet(`<h2>👤 Dein Profil</h2>` + tabs(tab, [['ich', 'Übersicht'], ['schrank', 'Charakter'], ['erfolge', 'Erfolge']]).replaceAll('data-tab=', 'data-ptab=')
+    + inhalt + `<button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: lobbyZeigen });
+}
+const kleidungNeu = () => ansicht === 'profil' ? profilSheet() : shopSheet();
 
 // ---------- Admin-Testmodus ----------
 function adminSheet() {
@@ -509,16 +596,20 @@ function adminSheet() {
 // ---------- Bedienung ----------
 document.addEventListener('click', e => {
   aktivieren();
-  const b = e.target.closest('button,.ov');
+  const b = e.target.closest('button,.ov,[data-plus],[data-minus]');
   if (!b) return;
   if (b.classList.contains('ov')) { if (e.target === b && !b.classList.contains('fest')) sheetZu(); return; }
   const d = b.dataset, P = pr.P;
+  if (d.uhu) return uhuWeg();
   if (d.k) return taste(d.k);
   if (d.tr !== undefined) return trainingKlick(d);
   if (d.l === 'lobby') { sheetZu(); return zeige('lobby'); }
   if (d.l === 'training') return zeige('training');
   if (d.l === 'shop') { shopTab = 'outfits'; return shopSheet(); }
-  if (d.l === 'erfolge') return erfolgeSheet();
+  if (d.l === 'erfolge') return profilSheet('erfolge');
+  if (d.l === 'profil') return P.figur && profilSheet('ich');
+  if (d.ptab) return profilSheet(d.ptab);
+  if (d.ptier) { P.figur.tier = d.ptier; P.figur.farbe = TIERE[d.ptier].farben[0]; pr.speichern(); sound.klick(); return profilSheet(); }
   if (d.l === 'optionen') return optSheet();
   if (d.l === 'admin') return adminSheet();
   if (d.l === 'install') return installieren();
@@ -527,13 +618,14 @@ document.addEventListener('click', e => {
   if (d.tier) { wahl = { ...wahl, tier: d.tier, farbe: TIERE[d.tier].farben[0] }; return figurWahl(); }
   if (d.farbe) { wahl.farbe = d.farbe; return figurWahl(); }
   if (d.outfit) { wahl.outfit = d.outfit; return figurWahl(); }
-  if (d.wahl) { P.figur = { ...wahl, acc: null }; pr.speichern(); sheetZu(); sound.erfolg(); return lobbyZeigen(); }
-  // Shop
+  if (d.wahl) { P.figur = { ...wahl, acc: {} }; pr.speichern(); sheetZu(); sound.erfolg(); return lobbyZeigen(); }
+  // Shop und Kleiderschrank
   if (d.tab) { shopTab = d.tab; return shopSheet(); }
-  if (d.kauf) { const it = [...OUTFITS, ...ACCESSOIRES].find(x => x.id === d.kauf); if (pr.kaufen(it)) { sound.kasse(); P.figur[shopTab === 'outfits' ? 'outfit' : 'acc'] = it.id; pr.speichern(); meldungenZeigen(); } return shopSheet(); }
-  if (d.an) { P.figur[shopTab === 'outfits' ? 'outfit' : 'acc'] = d.an; pr.speichern(); sound.klick(); return shopSheet(); }
-  if (d.ab) { P.figur.acc = null; pr.speichern(); return shopSheet(); }
-  if (d.fell) { P.figur.farbe = d.fell; pr.speichern(); return shopSheet(); }
+  const anziehen = id => { if (istOutfit(id)) P.figur.outfit = id; else P.figur.acc[accNr(id).fach] = id; };
+  if (d.kauf) { const it = [...OUTFITS, ...ACCESSOIRES].find(x => x.id === d.kauf); if (pr.kaufen(it)) { sound.kasse(); anziehen(it.id); pr.speichern(); meldungenZeigen(); } return kleidungNeu(); }
+  if (d.an) { anziehen(d.an); pr.speichern(); sound.klick(); return kleidungNeu(); }
+  if (d.ab) { delete P.figur.acc[d.ab]; pr.speichern(); sound.klick(); return kleidungNeu(); }
+  if (d.fell) { P.figur.farbe = d.fell; pr.speichern(); return kleidungNeu(); }
   // Admin
   if (d.adm === 'normal') { pr.laden('normal'); sheetZu(); toast('Zurück im normalen Spielstand.'); return lobbyZeigen(); }
   if (d.adm === 'reset') { try { localStorage.removeItem('truecount.admin'); } catch {} pr.laden('admin'); sheetZu(); toast('Admin-Spielstand zurückgesetzt.'); return lobbyZeigen(); }
@@ -546,11 +638,13 @@ document.addEventListener('click', e => {
   if (d.a === 'einsatz') return betSheet();
   if (d.a === 'optionen') return optSheet();
   if (d.a === 'aufstehen') return aufstehen();
+  if (d.a === 'info') return uhuFragen();
   if (d.a) return spielerZug(d.a);
+  if (d.plus) return haendeAendern(+d.plus, true);
+  if (d.minus) return haendeAendern(+d.minus, false);
   if (d.v) return versichern(d.v === '1');
   if (d.f === 'weiter') { sheetZu(); return austeilen(); }
   if (d.f === 'einsatz') return betSheet();
-  if (d.h) { haendeWahl = Math.min(T.hands[1], Math.max(T.hands[0], haendeWahl + +d.h)); sound.klick(); return drawBet(); }
   if (d.chip) return chipDazu(+d.chip);
   if (d.b === 'undo') { draft.pop(); return drawBet(); }
   if (d.b === 'clear') { draft = []; return drawBet(); }
