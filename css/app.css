@@ -86,7 +86,7 @@ body[data-screen=tisch] #app { display: grid; }
 @keyframes flieg { from { translate: var(--fx) var(--fy); } }
 #aux, #main { position: relative; z-index: 1; }
 #aux { grid-area: aux; display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px; }
-#aux .tip { flex-basis: 100%; margin: 0; font: 600 13px/1.35 system-ui, sans-serif; padding: 6px 10px; height: 36px; overflow: hidden; }
+#aux .tip { flex-basis: 100%; margin: 0; font: 600 13px/1.2 system-ui, sans-serif; padding: 3px 10px; height: 38px; overflow: hidden; display: flex; align-items: center; }
 #aux .btn { flex: 1; height: 44px; font-size: 15px; }
 #main { grid-area: main; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 58px 58px; gap: 8px; padding: 6px 8px 10px; }
 #main .btn { font-size: 19px; }
@@ -290,3 +290,19 @@ h3.fach { margin: 14px 0 6px; font-size: 17px; font-weight: normal; }
 @keyframes gut { 50% { transform: scale(1.06); } }
 .tr-loesung { min-height: 24px; color: #fff3c4; font: 700 16px system-ui, sans-serif; text-shadow: 1px 1px 0 var(--ink); text-align: center; }
 .tr-drill-info { position: absolute; right: 0; top: 0; }
+
+/* Tutorial mit Professor Uhu */
+#uhu.still .uhu-figur, #uhu.still .uhu-blase { animation: none; }
+.uhu-text { position: relative; }
+.uhu-x { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink); background: var(--panel); font: 700 16px system-ui, sans-serif; color: var(--ink); cursor: pointer; }
+.uhu-text h2 { padding-right: 36px; }
+.tut-karten { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin: 4px 0 2px; }
+.tut-karten svg { width: 46px; height: 62px; }
+.tut-antworten { display: grid; gap: 8px; margin-bottom: 10px; }
+.tut-antworten .btn { min-height: 48px; font-size: 16px; }
+.tut-antworten .btn:disabled { opacity: 1; filter: none; }
+.tut-antworten .btn.aus:disabled { opacity: .5; }
+.tut-kopf { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 12px; }
+.tut-kopf svg { width: 64px; height: 84px; flex: none; }
+.tut-kopf p { margin: 0; font: 500 14px/1.4 system-ui, sans-serif; }
+.tut-kopf b { display: block; font: normal 18px 'Luckiest Guy', system-ui; }

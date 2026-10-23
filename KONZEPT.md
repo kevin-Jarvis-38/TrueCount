@@ -179,3 +179,16 @@ Stand 2026-10-23 (Nacht): Etappe 0–7 sind gebaut. Offen sind „Freunde testen
   überkauft, dein Risiko beim Ziehen, den richtigen Zug mit Begründung, die Count-Abweichung und einen Merksatz. Im Strategie-Drill gibt es ihn
   über „Frag Professor Uhu“ (die Hand zählt dann nicht als Punkt), nach einem Fehler kommt er von selbst.
 - **App-Icon:** das Bild des Nutzers („TC“ mit Ass und Bube), zugeschnitten auf das Quadrat (`icons/`).
+
+## Rückmeldung nach dem zweiten Test (2026-10-23, umgesetzt)
+- **Tipp-Leiste:** Zwei Zeilen passen jetzt hinein. Wird ein Hinweis noch länger, wird die Schrift kleiner, statt abgeschnitten zu werden.
+- **Verdoppeln:** Die Strategie-Tabellen waren richtig. Der Lehrer hat aber nicht gesagt, wenn Verdoppeln gerade nicht erlaubt ist
+  (ab der dritten Karte oder wenn das Guthaben nicht reicht). Jetzt steht das dabei. Bei 10 und 11 gegen 10 oder Ass erklärt er,
+  warum man hier nicht verdoppelt (keine Hole Card). Den Merksatz für 8er und Asse („immer teilen“) gab es falsch, er ist korrigiert.
+  Prüfung: `test/verdoppeln.mjs`.
+- **Tutorial mit Professor Uhu** (Lobby → 🦉 Tutorial): 7 Lektionen (Regeln, Züge, Basisstrategie, Hi-Lo, True Count, Einsatz und
+  Abweichungen, die App), jede mit Quiz. Beim ersten Abschluss 20 XP plus 10 XP pro richtiger Antwort, für alle Lektionen den Erfolg
+  „Musterschüler“. Neue Spieler begrüßt Uhu nach der Charakterwahl und bietet das Tutorial an.
+- **Musik** (`js/musik.js`), komplett im Browser erzeugt: Hinterzimmer Blues, Kellerclub Cool Jazz, Grand Casino Swing, Lounge Bossa Nova,
+  Penthouse Deep House. Eigene Lautstärke in den Optionen („Musik“, Standard 40 %). Ist die App im Hintergrund, ist alles still.
+  Pegel prüfen: `test/musik.html` in Chrome öffnen (rendert jeden Stil offline und misst Spitze und RMS).

@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Musik-Test</title>
+<!-- Rendert jeden Tisch-Stil 20 Sekunden offline und misst Spitze und mittlere Lautstärke (RMS).
+     Aufruf: chrome --headless=new --timeout=40000 --dump-dom http://localhost:8765/test/musik.html -->
+<pre id="log">läuft</pre>
+<script>addEventListener('error', e => { document.getElementById('log').textContent = 'FEHLER ' + e.message; });</script>
+<script type="module">
+import { musikRendern } from '../js/musik.js';
+const SR = 44100, SEK = 20, zeilen = [];
+try {
+  for (const nr of [1, 2, 3, 4, 5]) {
+    const ctx = new OfflineAudioContext(1, SR * SEK, SR), bus = ctx.createGain();
+    bus.connect(ctx.destination);
+    const rausch = ctx.createBuffer(1, SR * 2, SR), d = rausch.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    musikRendern({ ctx, bus, rausch }, nr, 12);
+    const s = (await ctx.startRendering()).getChannelData(0);
+    let peak = 0, sum = 0, nan = 0;
+    for (const x of s) { if (Number.isNaN(x)) nan++; else { peak = Math.max(peak, Math.abs(x)); sum += x * x; } }
+    zeilen.push(`Tisch ${nr}: Spitze ${peak.toFixed(3)} · RMS ${Math.sqrt(sum / s.length).toFixed(4)} · NaN ${nan}`);
+  }
+} catch (e) { zeilen.push('FEHLER ' + e); }
+document.getElementById('log').textContent = zeilen.join('\n');
+</script>

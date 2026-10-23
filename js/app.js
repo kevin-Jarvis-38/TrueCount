@@ -7,8 +7,10 @@ import { TISCHE, NPC, tischNr } from './tische.js';
 import { figurBild, deineFigur, TIERE, OUTFITS, ACCESSOIRES, FAECHER, accNr } from './figuren.js';
 import * as pr from './profil.js';
 import { sound, aktivieren, lautstaerke, ambienteStart, ambienteStop } from './sound.js';
+import { musikStart, musikStop } from './musik.js';
 import { $, fmt, zahl, vz, pause, zufallZwischen, toast, sheet, sheetZu, sheetOffen, wackeln, zahlenfeld, taste, uhu, uhuWeg, uhuOffen } from './ui.js';
 import { trainingMenue, trainingKlick } from './training.js';
+import { tutorialMenue, tutorialKlick } from './tutorial.js';
 
 const TEMPO = [['Langsam', 900], ['Normal', 600], ['Schnell', 350]];
 const SPRUCH = { karte: 'Karte!', bleiben: 'Bleib!', verdoppeln: 'Doppelt!', teilen: 'Teilen!', aufgeben: 'Ich pass …' };
@@ -40,7 +42,7 @@ function zaehlerErfolg(k, n, stufen) {
 // ---------- Bildschirme ----------
 function zeige(s) {
   document.body.dataset.screen = s;
-  if (s !== 'tisch') ambienteStop();
+  if (s !== 'tisch') { ambienteStop(); musikStop(); }
   if (s === 'lobby') lobbyZeigen();
   if (s === 'training') trainingMenue();
 }
@@ -132,7 +134,7 @@ function hinsetzen(nr) {
   pr.speichern();
   zeige('tisch');
   aktivieren();
-  if (E.ton) ambienteStart(T.nr >= 3);
+  if (E.ton) { ambienteStart(T.nr >= 3); musikStart(T.nr); }
   render();
   toast(`${T.name}: ${T.nr === 1 ? 'Willkommen im Hinterzimmer. Crazy Joe ist schon wieder blau …' : `Tisch ${T.nr}, ${T.decks} Decks im Schuh. Viel Glück!`}`);
 }
@@ -158,6 +160,14 @@ function hinweis() {
   if (ph === 'spielen') return `⏳ ${tisch.plaetze[tisch.ap].name} ist dran …`;
   if (ph === 'dealer') return `⏳ Frack-Fred deckt auf …`;
   return `⏳ Frack-Fred teilt aus …`;
+}
+// Der Hinweis muss in die Leiste passen: Ist er zu lang, wird die Schrift kleiner statt abgeschnitten.
+function tippSetzen(html) {
+  const p = $('#tip');
+  p.innerHTML = `<span>${html}</span>`;
+  const s = p.firstChild, cs = getComputedStyle(p), frei = p.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  if (frei <= 0) return;
+  for (let px = parseFloat(cs.fontSize); px >= 9; px -= .5) { s.style.fontSize = px + 'px'; if (s.offsetHeight <= frei) break; }
 }
 function hudZeigen() {
   const P = pr.P, f = pr.fortschritt(P.xp), s = sitzung();
@@ -191,7 +201,7 @@ function render() {
   $('[data-a=optionen]').disabled = !zw || laeuft;
   $('#betlbl').textContent = fmt(einsatzWert()) + (DU.length > 1 ? ` × ${DU.length}` : '');
   $('#deallbl').textContent = tisch.phase === 'fertig' ? 'Nächste Runde' : 'Austeilen';
-  $('#tip').innerHTML = hinweis();
+  tippSetzen(hinweis());
   hudZeigen();
   if (tisch.phase === 'versicherung' && !laeuft && !sheetOffen() && DU.some(i => tisch.plaetze[i].versicherung === null)) versicherungFragen();
 }
@@ -467,6 +477,7 @@ const OPT = () => [
   ['fragen', 'Count-Fragen', E.fragen, 'True Count vor dem Setzen abfragen'],
   ['ton', 'Ton', E.ton],
   ['lautEffekte', 'Effekte', Math.round(E.lautEffekte * 100) + ' %'],
+  ['lautMusik', 'Musik', Math.round(E.lautMusik * 100) + ' %', 'jeder Tisch hat seinen eigenen Stil'],
   ['lautAmbiente', 'Hintergrund', Math.round(E.lautAmbiente * 100) + ' %', 'Gemurmel und Spielautomaten'],
   ...(tisch && T.hands[1] === 1 ? [['platz', 'Dein Platz', `${sitzordnung().indexOf('du') + 1} von ${T.plaetze.length}`, 'Platz 1 bekommt die Karten zuerst']] : []),
   ...(pr.istAdmin() ? [['countAnzeige', 'Count anzeigen (Admin)', E.countAnzeige]] : []),
@@ -490,11 +501,11 @@ function option(o) {
   if (k === 'decks') E.decks = grenz(E.decks + r, 0, 8);
   else if (k === 'schnitt') E.schnitt = grenz(Math.round((E.schnitt + r * .05) * 100) / 100, .5, .85);
   else if (k === 'tempo') E.tempo = grenz(E.tempo + r, 0, 2);
-  else if (k === 'lautEffekte' || k === 'lautAmbiente') E[k] = grenz(Math.round((E[k] + r * .2) * 10) / 10, 0, 1);
+  else if (k === 'lautEffekte' || k === 'lautAmbiente' || k === 'lautMusik') E[k] = grenz(Math.round((E[k] + r * .2) * 10) / 10, 0, 1);
   else if (k === 'platz') pr.P.einsatz['p' + T.nr] = grenz(sitzordnung().indexOf('du') + r, 0, T.plaetze.length - 1);
   else if (k === 'freestyle') { const an = E.lehrer || E.fragen; E.lehrer = E.fragen = !an; }
   else E[k] = !E[k];
-  if (k === 'ton') { aktivieren(); if (E.ton && tisch) ambienteStart(T.nr >= 3); if (!E.ton) ambienteStop(); }
+  if (k === 'ton') { aktivieren(); if (E.ton && tisch) { ambienteStart(T.nr >= 3); musikStart(T.nr); } if (!E.ton) { ambienteStop(); musikStop(); } }
   lautstaerke();
   pr.einstellungenSpeichern();
   pr.speichern();
@@ -593,6 +604,14 @@ function adminSheet() {
   }, { knopf: 'Entsperren', stellen: 4, pin: true })}`);
 }
 
+// Neue Spieler begrüßt Professor Uhu und bietet das Tutorial an
+function willkommen() {
+  if (pr.P.tutorial.length) return;
+  uhu('Willkommen bei TrueCount!', ['Ich bin Professor Uhu. Soll ich dir in ein paar kurzen Lektionen zeigen, wie Blackjack und Kartenzählen funktionieren?',
+    'Du findest das Tutorial auch später jederzeit in der Lobby.'],
+  { knoepfe: '<div class="row zwei"><button class="btn aux" data-uhu="zu">Später</button><button class="btn hit" data-l="tutorial">Ja, gern!</button></div>' });
+}
+
 // ---------- Bedienung ----------
 document.addEventListener('click', e => {
   aktivieren();
@@ -601,6 +620,9 @@ document.addEventListener('click', e => {
   if (b.classList.contains('ov')) { if (e.target === b && !b.classList.contains('fest')) sheetZu(); return; }
   const d = b.dataset, P = pr.P;
   if (d.uhu) return uhuWeg();
+  if (d.tut) return tutorialKlick(d);
+  if (d.l && uhuOffen()) uhuWeg(); // z. B. „Zur Lobby“ aus Uhus Sprechblase
+  if (d.l === 'tutorial') { zeige('training'); return tutorialMenue(); }
   if (d.k) return taste(d.k);
   if (d.tr !== undefined) return trainingKlick(d);
   if (d.l === 'lobby') { sheetZu(); return zeige('lobby'); }
@@ -618,7 +640,7 @@ document.addEventListener('click', e => {
   if (d.tier) { wahl = { ...wahl, tier: d.tier, farbe: TIERE[d.tier].farben[0] }; return figurWahl(); }
   if (d.farbe) { wahl.farbe = d.farbe; return figurWahl(); }
   if (d.outfit) { wahl.outfit = d.outfit; return figurWahl(); }
-  if (d.wahl) { P.figur = { ...wahl, acc: {} }; pr.speichern(); sheetZu(); sound.erfolg(); return lobbyZeigen(); }
+  if (d.wahl) { P.figur = { ...wahl, acc: {} }; pr.speichern(); sheetZu(); sound.erfolg(); lobbyZeigen(); return willkommen(); }
   // Shop und Kleiderschrank
   if (d.tab) { shopTab = d.tab; return shopSheet(); }
   const anziehen = id => { if (istOutfit(id)) P.figur.outfit = id; else P.figur.acc[accNr(id).fach] = id; };

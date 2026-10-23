@@ -64,7 +64,15 @@ export function lehrerZug(karten, up, m, tc) {
     const grenze = a.ab !== undefined ? `ab True Count ${tcText(a.ab)}` : `bei True Count ${tcText(a.bis)} und weniger`;
     return { zug: a.z, basis, grenze, abweichung: true, text: `Abweichung: ${paar && a.paar ? `${paar}er-Paar` : summe} gegen ${upText(u)} – ${grenze} heißt es <b>${NAME[a.z]}</b> statt ${NAME[basis]}.` };
   }
-  return { zug: basis, basis, abweichung: false, text: erklaerung(basis, summe, soft, paar, u) };
+  const ohne = ohneVerdoppeln(karten, up, m, basis);
+  return { zug: basis, basis, abweichung: false, ohne, text: erklaerung(basis, summe, soft, paar, u) + (ohne ? ` ${ohne}` : '') };
+}
+
+// Wäre Verdoppeln richtig, ist aber gerade nicht erlaubt? Dann sagt der Lehrer das dazu, sonst wirkt es, als hätte er es vergessen.
+function ohneVerdoppeln(karten, up, m, z) {
+  if (m.verdoppeln || z === 'D' || basisZug(karten, up, { ...m, verdoppeln: true }) !== 'D') return '';
+  return karten.length > 2 ? 'Eigentlich wäre das eine Verdoppel-Hand, aber verdoppeln darfst du nur mit den ersten zwei Karten.'
+    : 'Eigentlich wäre hier Verdoppeln richtig, aber dafür reicht dein Guthaben nicht.';
 }
 
 // ---------- Ausführliche Erklärung für Professor Uhu ----------
@@ -75,7 +83,8 @@ const risiko = s => s <= 11 ? 0 : Math.round((Math.max(0, 9 - (21 - s)) + 4) / 1
 const upName = u => u === 11 ? 'ein Ass' : u === 10 ? 'eine 10 (oder ein Bild)' : `eine ${u}`;
 const PAAR_MERK = {
   2: '2er und 3er teilt man gegen 2 bis 7.', 3: '2er und 3er teilt man gegen 2 bis 7.', 4: '4er teilt man nur gegen 5 und 6.',
-  5: '5er teilt man nie. Spiel sie wie eine 10.', 6: '6er teilt man gegen 2 bis 6.', 7: '7er teilt man gegen 2 bis 7.',
+  5: '5er teilt man nie. Spiel sie wie eine 10.', 8: '8er teilt man gegen 2 bis 9. Gegen 10 und Ass nicht, weil der Dealer hier nicht vorher nach Blackjack schaut.',
+  11: 'Asse teilt man immer, nur nicht gegen ein Ass (der Dealer schaut hier nicht vorher nach Blackjack).', 6: '6er teilt man gegen 2 bis 6.', 7: '7er teilt man gegen 2 bis 7.',
   9: '9er teilt man gegen 2 bis 9, außer gegen 7 (da reichen deine 18).', 10: 'Zehner teilt man (fast) nie, 20 ist eine super Hand.',
 };
 const paarName = p => p === 11 ? 'Asse' : p === 10 ? 'Zehner' : `${p}er`;
@@ -97,7 +106,8 @@ export function lehrerAusfuehrlich(karten, up, m, tc) {
 
   const warum = {
     H: soft ? 'Ziehen kostet dich nichts, schlimmstenfalls zählt das Ass als 1. Stehen bleiben wäre hier zu wenig.'
-      : s <= 11 ? 'Du riskierst nichts und machst deine Hand besser.'
+      : s <= 11 ? 'Du riskierst nichts und machst deine Hand besser.' + (s >= 10 && u >= 10 && !rat.ohne
+        ? ` Verdoppeln würde man mit ${s} gern, aber nicht gegen ${gegen}: Hier schaut der Dealer nicht vorher nach Blackjack. Hat er einen, verlierst du auch den verdoppelten Einsatz.` : '')
       : `Bleibst du stehen, gewinnst du nur, wenn sich der Dealer überkauft. Das passiert hier nur in etwa ${b} % der Fälle. Das Risiko beim Ziehen ist kleiner als die fast sichere Niederlage.`,
     S: s >= 17 && !soft ? `${s} ist eine fertige Hand. Mit einer weiteren Karte würdest du dich zu ${r} % überkaufen.`
       : soft ? `Soft ${s} ist eine gute Hand. Gegen ${gegen} reicht das.`
@@ -111,10 +121,10 @@ export function lehrerAusfuehrlich(karten, up, m, tc) {
     R: `Aufgeben heißt: Die Hand ist sofort vorbei und du bekommst den <b>halben Einsatz</b> zurück. Das lohnt sich nur, wenn du sonst öfter als jedes zweite Mal verlierst, und genau das ist bei ${s} gegen ${gegen} so.`,
   }[z];
   a.push(`<b>Darum: ${NAME[z]}.</b> ${warum}`);
+  if (rat.ohne) a.push(`✋ ${rat.ohne}`);
   if (rat.abweichung) a.push(`🧮 Hier macht der Count den Unterschied. Normalerweise wäre <b>${NAME[rat.basis]}</b> richtig. Bei True Count ${tcText(tc)} sind ${tc > 0 ? 'viele hohe Karten (10er und Asse)' : 'viele kleine Karten'} übrig, deshalb spielt man ${rat.grenze} <b>${NAME[z]}</b>.`);
 
-  const merk = paar === 11 || paar === 8 ? 'Asse und 8er werden immer geteilt.'
-    : paar && m.teilen ? PAAR_MERK[paar]
+  const merk = paar && m.teilen ? PAAR_MERK[paar]
     : z === 'R' ? 'Aufgeben nur mit 15 gegen 10 und mit 16 gegen 9, 10 oder Ass.'
     : soft ? 'Soft 17 und weniger: nie stehen bleiben. Soft 19 und mehr: immer stehen bleiben. Bei Soft 18 kommt es auf den Dealer an.'
     : s >= 17 ? 'Ab einer harten 17 bleibt man immer stehen.'
@@ -133,6 +143,7 @@ function erklaerung(z, s, soft, paar, u) {
   if (z === 'R') return `${s} gegen ${gegen} verliert so oft, dass der halbe Einsatz zurück die bessere Wahl ist.`;
   if (z === 'D') return `${soft ? 'Soft ' : ''}${s} gegen ${gegen}: <b>Verdoppeln</b> – ${schwach ? 'der Dealer überkauft sich oft, hol mehr raus.' : 'gute Chance auf eine starke Hand.'}`;
   if (soft) return z === 'S' ? `Soft ${s} reicht gegen ${gegen} – <b>bleiben</b>.` : `Soft ${s} gegen ${gegen}: <b>Karte</b> – mit dem Ass kannst du nicht überkaufen.`;
+  if (z === 'H' && s >= 10 && s <= 11 && u >= 10) return `${s} gegen ${gegen}: <b>Karte</b>, aber nicht verdoppeln – der Dealer schaut nicht vorher nach Blackjack. Hat er einen, wäre der doppelte Einsatz weg.`;
   if (z === 'H' && s <= 11) return `Mit ${s} kannst du nicht überkaufen – immer <b>Karte</b>.`;
   if (z === 'S' && s >= 17) return `${s} ist genug – <b>bleiben</b>.`;
   if (z === 'S') return `Der Dealer hat ${gegen} und überkauft sich oft. Mit ${s} <b>bleiben</b> und ihn das Risiko tragen lassen.`;

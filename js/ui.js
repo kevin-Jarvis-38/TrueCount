@@ -54,13 +54,17 @@ export function wackeln(text) {
 
 // ---------- Professor Uhu: läuft von der Seite ins Bild und erklärt in einer großen Sprechblase ----------
 // Solange er redet, liegt er über allem. Das Spiel wartet, weil man nichts anderes antippen kann.
+// knoepfe = eigene Knöpfe statt „Alles klar!“ (Tutorial), still = er steht schon da, also nicht noch einmal hereinlaufen.
+// Mit eigenen Knöpfen gibt es oben ein ✕, damit man jederzeit herauskommt.
 let uhuFertig = null;
-export function uhu(titel, absaetze, { knopf = 'Alles klar!', zu = null } = {}) {
+export function uhu(titel, absaetze, { knopf = 'Alles klar!', zu = null, knoepfe = null, still = false } = {}) {
   const el = $('#uhu');
   el.innerHTML = `<div class="uhu-figur">${figurBild(LEHRER)}<b>${LEHRER.name}</b></div>`
-    + `<div class="uhu-blase"><div class="pn uhu-text"><h2>${titel}</h2>${absaetze.map(p => `<p>${p}</p>`).join('')}`
-    + `<button class="btn hit voll" data-uhu="zu">${knopf}</button></div></div>`;
+    + `<div class="uhu-blase"><div class="pn uhu-text">${knoepfe ? '<button class="uhu-x" data-uhu="zu" aria-label="Schließen">✕</button>' : ''}<h2>${titel}</h2>${absaetze.map(p => `<p>${p}</p>`).join('')}`
+    + (knoepfe || `<button class="btn hit voll" data-uhu="zu">${knopf}</button>`) + '</div></div>';
+  el.classList.toggle('still', still);
   el.classList.add('open');
+  el.querySelector('.uhu-text').scrollTop = 0;
   uhuFertig = zu;
   sound.klick();
 }

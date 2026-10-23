@@ -52,6 +52,7 @@ export const ERFOLGE = [
   ['trainiert', '🏋️', 'Trainingsfleißig', 'Schließ 20 Trainingsrunden ab.', 100],
   ['blitzfinger', '👆', 'Blitzfinger', 'Zählwert-Tippen: alle 30 Karten richtig in unter 30 Sekunden.', 150],
   ['mehrhaendig', '🐙', 'Krake', 'Spiel 3 Hände gleichzeitig.', 100],
+  ['musterschueler', '🦉', 'Musterschüler', 'Schließ alle Lektionen im Tutorial bei Professor Uhu ab.', 150],
 ].map(([id, emoji, name, text, xp]) => ({ id, emoji, name, text, xp }));
 
 // Fortschritt eines Erfolgs: { anteil 0–1, text }. Bei Erfolgen ohne Zwischenstand heißt es 0 / 1.
@@ -72,7 +73,7 @@ const STAND = {
   level5: () => zahlStand(level(P.xp), 5), level10: () => zahlStand(level(P.xp), 10), level20: () => zahlStand(level(P.xp), 20),
   level30: () => zahlStand(level(P.xp), 30), level40: () => zahlStand(level(P.xp), 40),
   shopping: () => zahlStand(P.besitz.length - STARTER.length, 1), modebewusst: () => zahlStand(P.besitz.length - STARTER.length, 8),
-  trainiert: () => zahlStand(st('training'), 20), comeback: () => P.tief500 ? { anteil: Math.min(1, P.geld / 1000), text: `${tausend(P.geld)} / 1.000 €` } : zahlStand(0, 1),
+  trainiert: () => zahlStand(st('training'), 20), musterschueler: () => zahlStand(P.tutorial.length, LEKTIONEN), comeback: () => P.tief500 ? { anteil: Math.min(1, P.geld / 1000), text: `${tausend(P.geld)} / 1.000 €` } : zahlStand(0, 1),
 };
 export function erfolgStand(id) {
   if (P.erfolge[id]) return { anteil: 1, text: 'Geschafft am ' + new Date(P.erfolge[id]).toLocaleDateString('de-DE') };
@@ -80,10 +81,11 @@ export function erfolgStand(id) {
 }
 
 // ---------- Laden und Speichern ----------
+export const LEKTIONEN = 7; // so viele Lektionen hat das Tutorial (tutorial.js)
 export const STARTER = OUTFITS.filter(o => !o.preis).map(o => o.id);
 const neu = () => ({
   geld: 1000, xp: 0, serie: 0, pleiten: 0, tische: [1], erfolge: {}, figur: null, besitz: [...STARTER], einsatz: {},
-  sitzung: null, verlauf: [], stat: {}, tief500: false, trainingTag: { tag: '', xp: 0 },
+  sitzung: null, verlauf: [], stat: {}, tief500: false, trainingTag: { tag: '', xp: 0 }, tutorial: [],
 });
 function adminNeu() {
   return { ...neu(), geld: 1000000, xp: levelXp(40), tische: [1, 2, 3, 4, 5], besitz: [...OUTFITS, ...ACCESSOIRES].map(o => o.id),
@@ -99,7 +101,7 @@ function figurAnpassen(f) {
 
 export let P, modus;
 export const E = Object.assign({ decks: 0, schnitt: .75, tempo: 1, zaehlwerte: true, legende: true, lehrer: true, fragen: true, countAnzeige: false,
-  ton: true, lautEffekte: .8, lautAmbiente: .4 }, lesen(KEY_EINST));
+  ton: true, lautEffekte: .8, lautAmbiente: .4, lautMusik: .4 }, lesen(KEY_EINST));
 export const einstellungenSpeichern = () => schreiben(KEY_EINST, E);
 
 export function laden(m = lesen(KEY_MODUS) || 'normal') {

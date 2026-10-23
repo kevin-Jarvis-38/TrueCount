@@ -1,8 +1,8 @@
 // TrueCount – Geräusche. Alle werden im Browser erzeugt (keine Dateien, keine Lizenzfragen).
-// Effekte und Hintergrund (Gemurmel und Spielautomaten) haben eigene Lautstärken.
+// Effekte, Hintergrund (Gemurmel und Spielautomaten) und Musik haben eigene Lautstärken.
 import { E } from './profil.js';
 
-let ctx, master, fxBus, ambBus, rauschBuf, amb = null;
+let ctx, master, fxBus, ambBus, musBus, rauschBuf, amb = null;
 
 function init() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -10,6 +10,7 @@ function init() {
   master = ctx.createGain(); master.connect(ctx.destination);
   fxBus = ctx.createGain(); fxBus.connect(master);
   ambBus = ctx.createGain(); ambBus.connect(master);
+  musBus = ctx.createGain(); musBus.connect(master);
   rauschBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = rauschBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -22,7 +23,12 @@ export function lautstaerke() {
   master.gain.value = E.ton ? 1 : 0;
   fxBus.gain.value = E.lautEffekte;
   ambBus.gain.value = E.lautAmbiente * .6;
+  musBus.gain.value = E.lautMusik * .8;
 }
+// Für die Musik (musik.js): derselbe Audio-Kontext, eigener Lautstärke-Regler
+export const audio = () => ctx ? { ctx, bus: musBus, rausch: rauschBuf } : null;
+// Im Hintergrund (App gewechselt, Bildschirm aus) ist alles still
+document.addEventListener('visibilitychange', () => { if (ctx) (document.hidden ? ctx.suspend() : ctx.resume()).catch(() => {}); });
 
 const jetzt = () => ctx.currentTime;
 function huelle(g, t, a, peak, dauer) {
