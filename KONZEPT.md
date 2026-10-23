@@ -121,14 +121,39 @@ Diese Datei ist der feste Stand, den der Nutzer und Claude gemeinsam festgelegt 
 7. Icon („TC“ mit Ass und König), Installation auf dem Handy, Freunde testen
 8. Mehrspieler mit Firebase
 
-Stand: Etappe 0 fertig (Design A). Etappe 1 am 2026-10-23 gebaut, `index.html` ist jetzt das Spiel.
+Stand 2026-10-23 (Nacht): Etappe 0–7 sind gebaut. Offen sind „Freunde testen“ (Etappe 7) und Etappe 8 (Firebase, dafür braucht es das Google-Konto des Nutzers).
+
+## Entscheidungen beim Durchbauen (2026-10-23, Nutzer hat geschlafen – alles änderbar)
+- Tische: 1 Hinterzimmer, 2 Kellerclub, 3 Grand Casino, 4 Lounge (50–1.000 €, 2–3 Hände), 5 Penthouse (ab 500 €, 1–5 Hände, nur du gegen den Dealer).
+  Decks 2/4/6/6/6. Count-Fragen alle 2–3 / 3–5 / 5–8 / 6–10 / 8–12 Hände. Zeitlimit –/20/15/12/8 Sekunden. Der Dealer wird pro Tisch schneller.
+  Hinsetzen ab Tisch 2 mit 20 × Mindesteinsatz (500 / 2.000 / 1.000 / 10.000 €).
+- Mitspieler: Kellerclub mit Bello Bankrott (Hund), Hicks-Heinz (Hyäne) und Futon der Abi (Kater). Grand Casino mit Esel-Eddie,
+  Gorilla Gustav, Kater Karlo und Hasi Hartmann. Lounge mit Diamanten-Dieter (Hund) und Hyänen-Hilde.
+- Count-Frage: 70 % True Count, 30 % laufender Count. Erst ab 12 gespielten Karten im Schuh. Wer die Decks um ein halbes Deck
+  anders schätzt, liegt auch richtig. Die Frage blendet sich so ein, dass Schuh und Ablage sichtbar bleiben.
+- Einsatz-Bewertung: Eine Einheit sind 2 × Mindesteinsatz. Empfohlen sind 1 / 2 / 4 / 6 / 8 Einheiten bei True Count ≤ +1 / +2 / +3 / +4 / ≥ +5.
+- Lehrer: Basisstrategie plus die wichtigsten Abweichungen (Illustrious 18, Fab 4). Ein falscher Zug wird trotzdem ausgeführt,
+  der Lehrer zeigt dann den richtigen. Versicherung lohnt sich ab True Count +3.
+- XP: Level-Kurve 60 × (Level − 1)^2,1. Tisch-Faktor 1 / 1,5 / 2 / 3 / 4. Aufstehen sichert den Pott × Serien-Bonus.
+  Dazu kommen Sitzungsgewinn-XP und der Wonging-Bonus (20 XP × Tisch-Faktor, ab 5 Runden).
+  Der Serien-Bonus steigt um +0,1 pro Gewinn-Sitzung (ab 5 Runden), eine Verlust-Sitzung setzt ihn auf ×1.
+- Pleite heißt: unter 5 € (man kann nirgends mehr setzen). An höheren Tischen muss man unter dem Mindesteinsatz aufstehen, der Pott bleibt dann.
+- Count-Quote für Tisch 4/5: die letzten 50 Antworten, sie zählt ab 30 Antworten.
+- Shop: Outfits, Accessoires und kostenloses Umfärben. Den Platz am Tisch wählt man in den Optionen (Tische mit einer Hand).
+- Training: Blitz-Zählen, Deck-Countdown, True Count rechnen und Strategie-Drill. Höchstens 300 XP pro Tag.
+- Geräusche werden im Browser erzeugt (keine Dateien). Effekte und Hintergrund sind getrennt regelbar.
+- Admin-Testmodus: PIN 2121, eigener Spielstand mit 1.000.000 €, Level 40 und allem freigeschaltet. Optional zeigt er den Count live an.
 
 ## Aufbau
-- `js/karten.js`: Karten, Werte, Zufall mit Startwert, Schuh
-- `js/strategie.js`: Basisstrategie für diese Regeln (für die Mitspieler und den Lehrer in Etappe 2)
-- `js/tisch.js`: Spiellogik ohne Oberfläche (später auch die Grundlage für den Mehrspieler-Modus)
-- `js/szene.js`: zeichnet den Tisch als SVG, `js/app.js`: Bedienung und Spielstand (localStorage `truecount.v1`)
-- `test/sim.mjs`: spielt 200.000 Runden durch und prüft, dass kein Geld und keine Karte verloren geht
+- `js/karten.js`: Karten, Werte, Hi-Lo, Zufall mit Startwert, Schuh
+- `js/strategie.js`: Basisstrategie, Abweichungen nach dem Count, Erklärungen, Einsatz-Bewertung
+- `js/tisch.js`: Spiellogik ohne Oberfläche, mit Konten für mehrere Hände und laufendem Count (Grundlage für den Mehrspieler-Modus)
+- `js/tische.js`: die fünf Tische und alle Mitspieler
+- `js/figuren.js`: alle Tiere, Outfits und Accessoires, `js/szene.js`: der Tisch als SVG
+- `js/profil.js`: Spielstand (localStorage `truecount.v2`, Admin `truecount.admin`, Einstellungen `truecount.einstellungen`), XP, Level, Erfolge
+- `js/app.js`: Lobby, Tisch, Count-Fragen, Shop, Optionen, `js/training.js`: Trainingsbereich, `js/ui.js`: Meldungen, Einblendungen, Zahlenfeld
+- `js/sound.js`: Geräusche, `sw.js` + `manifest.webmanifest` + `icons/`: Installation und Offline-Betrieb
+- `test/sim.mjs`: spielt 200.000 Runden durch und prüft, dass weder Geld noch Karten noch der Count verloren gehen
 
 ## Hinweise für die Entwicklung
 - Spiellogik testen: `MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD":/app -w /app node:22-alpine node test/sim.mjs`

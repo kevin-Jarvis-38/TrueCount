@@ -4,25 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4a2e1b">
+<meta name="description" content="Blackjack-App zum Kartenzählen lernen (Hi-Lo)">
 <title>TrueCount</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap">
 <link rel="stylesheet" href="css/app.css">
 <script type="module" src="js/app.js"></script>
 </head>
-<body>
-<div id="app" data-modus="setzen">
+<body data-screen="lobby">
+<!-- Schatten für alle Zeichnungen -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="fx" x="-20%" y="-20%" width="150%" height="160%"><feFlood flood-color="#000" flood-opacity=".38"/><feComposite in2="SourceAlpha" operator="in"/><feOffset dx="2" dy="4" result="s"/><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg>
+
+<section id="lobby" class="screen">
+  <header class="logo"><div><span class="tc">TC</span> True<b>Count</b></div><em id="admin-badge" hidden>ADMIN</em></header>
+  <div class="pn profil" id="profil"></div>
+  <div id="tischliste"></div>
+  <nav class="nav">
+    <button class="btn aux" data-l="training">🏋️ Training</button>
+    <button class="btn aux" data-l="shop">🛍️ Shop</button>
+    <button class="btn aux" data-l="erfolge">🏆 Erfolge</button>
+    <button class="btn aux" data-l="optionen">⚙️ Optionen</button>
+    <button class="btn aux" data-l="admin">🔑 Admin</button>
+    <button class="btn aux" data-l="install" hidden>📲 Installieren</button>
+  </nav>
+</section>
+
+<div id="app" class="screen" data-modus="setzen">
   <header id="hud">
-    <div class="pn tisch"><b id="tischname">Hinterzimmer</b><small id="tischlimit"></small></div>
-    <div class="pn"><small>Einsatz</small><b id="einsatz"></b></div>
+    <div class="pn lvl"><span id="hud-ava"></span><div><b id="hud-level"></b> <small id="hud-titel"></small><div class="bar"><i id="hud-bar"></i></div></div></div>
+    <div class="pn"><small>Pott</small><b id="hud-pott"></b><em id="hud-serie"></em></div>
     <div class="pn"><small>Guthaben</small><b id="geld"></b></div>
   </header>
   <main id="stage"><svg id="scene" preserveAspectRatio="xMidYMid meet"></svg></main>
   <section id="aux">
     <p class="pn tip" id="tip"></p>
-    <button class="btn aux" data-a="aufgeben">Aufgeben<small>Surrender</small></button>
-    <button class="btn aux" data-a="optionen">Optionen<small>Schuh · Tempo</small></button>
+    <button class="btn aux z" data-a="aufgeben">Aufgeben<small>Surrender</small></button>
+    <button class="btn aux s" data-a="aufstehen">Aufstehen<small>Pott sichern</small></button>
+    <button class="btn aux" data-a="optionen">Optionen<small>Schuh · Ton</small></button>
   </section>
   <section id="main">
     <button class="btn hit z" data-a="karte">Karte<small>Hit</small></button>
@@ -33,31 +57,10 @@
     <button class="btn hit s" data-a="austeilen"><span id="deallbl">Austeilen</span><small>Deal</small></button>
   </section>
 </div>
+
+<section id="training" class="screen"><div id="tr"></div></section>
+
 <div id="toast" class="pn"></div>
-
-<div class="ov" id="ov-bet"><div class="pn sheet">
-  <h2>Einsatz</h2>
-  <p id="bet-info"></p>
-  <div class="pile" id="bpile"></div>
-  <div class="bsum" id="bsum"></div>
-  <div class="chips" id="chips"></div>
-  <div class="row"><button class="btn aux" data-b="undo">↩ Zurück</button><button class="btn aux" data-b="clear">Leeren</button><button class="btn hit" data-b="ok">✓ Setzen</button></div>
-</div></div>
-
-<div class="ov fest" id="ov-vers"><div class="pn sheet">
-  <h2>Versicherung?</h2>
-  <p>Der Dealer zeigt ein <b>Ass</b>. Die Versicherung kostet <b id="vers-preis"></b> und zahlt 2 zu 1, wenn er Blackjack bekommt.</p>
-  <div class="row zwei"><button class="btn aux" data-v="0">Nein</button><button class="btn hit" data-v="1">Ja, versichern</button></div>
-</div></div>
-
-<div class="ov" id="ov-opt"><div class="pn sheet">
-  <h2>Optionen</h2>
-  <div class="opt"><span>Decks im Schuh</span><button class="btn aux" data-o="decks:-1">−</button><b id="o-decks"></b><button class="btn aux" data-o="decks:1">+</button></div>
-  <div class="opt"><span>Schnittkarte</span><button class="btn aux" data-o="schnitt:-1">−</button><b id="o-schnitt"></b><button class="btn aux" data-o="schnitt:1">+</button></div>
-  <div class="opt"><span>Tempo</span><button class="btn aux" data-o="tempo:-1">−</button><b id="o-tempo"></b><button class="btn aux" data-o="tempo:1">+</button></div>
-  <div class="opt"><span>Zählwerte auf den Karten<br><small>Hi-Lo: +1 / 0 / −1</small></span><button class="btn aux" data-o="werte:0" id="o-werte" style="grid-column: 2 / 5"></button></div>
-  <p>Ändert sich der Schuh, mischt der Dealer sofort einen neuen.</p>
-  <div class="row zwei"><span></span><button class="btn hit" data-zu="1">Fertig</button></div>
-</div></div>
+<div class="ov" id="ov"><div class="pn sheet" id="sheet"></div></div>
 </body>
 </html>

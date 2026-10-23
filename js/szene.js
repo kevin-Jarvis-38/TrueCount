@@ -1,104 +1,14 @@
-// TrueCount – Tisch-Szene im Stil „Comic-Klassik“ (Entwurf A): zeichnet den Spielstand als SVG.
-// Figuren und Formen stammen aus entwuerfe/szene.js.
+// TrueCount – Tisch-Szene im Stil „Comic-Klassik“: zeichnet den Spielstand als SVG.
 import { wert, hiLo } from './karten.js';
 import { istBJ } from './tisch.js';
+import { INK, THIN, FONT, S, ln, txt, fx, bust, lighten, darken } from './figuren.js';
 
-const INK = '#1a1a1a', THIN = 2, FONT = "'Luckiest Guy'";
-const T = { felt: '#2f8f4e', rail: '#7b4a26', feltText: '#f6e7a1', shoe: '#b8322a', tray: '#6b4a2e', back: '#c0392b', plate: '#fff3c4', acc: '#ffcc00', card: '#fffdf5', red: '#d62828' };
+const T = { rail: '#7b4a26', feltText: '#f6e7a1', shoe: '#b8322a', tray: '#6b4a2e', back: '#c0392b', plate: '#fff3c4', acc: '#ffcc00', card: '#fffdf5', red: '#d62828' };
 const CW = 40, CH = 56; // Kartenmaß: 56 Einheiten = 88 mm
 const DECK = 52 * 0.3 * CH / 88; // ein Deck ist ca. 15,6 mm dick
-export const CHIPC = { 1: '#f2f2f2', 5: '#e63946', 25: '#2a9d5c', 100: '#262a36', 500: '#7b2cbf', 1000: '#f4a020' };
+export const CHIPC = { 1: '#f2f2f2', 5: '#e63946', 25: '#2a9d5c', 100: '#262a36', 500: '#7b2cbf', 1000: '#f4a020', 5000: '#00a6c8' };
+const DEALER = { kind: 'pinguin', body: 'smoking' };
 
-// ---------- Farben ----------
-const rgb = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
-const hex = a => '#' + a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
-const mix = (a, b, t) => { const A = rgb(a), B = rgb(b); return hex(A.map((v, i) => v + (B[i] - v) * t)); };
-const lighten = (c, t) => mix(c, '#ffffff', t), darken = (c, t) => mix(c, '#000000', t);
-
-// ---------- SVG-Bausteine ----------
-let uid = 0;
-const at = o => Object.entries(o).map(([k, v]) => `${k}="${v}"`).join(' ');
-const S = (tag, { sw = 3, ...o }, fill) => `<${tag} ${at(o)} fill="${fill}" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
-const ln = (d, w = 2.5, col = INK, extra = '') => `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
-const txt = (x, y, s, size, fill, extra = '') => `<text x="${x}" y="${y}" font-family="${FONT}, sans-serif" font-size="${size}" fill="${fill}" text-anchor="middle" ${extra}>${s}</text>`;
-const fx = inner => `<g filter="url(#fx)">${inner}</g>`;
-const FILTER = '<filter id="fx" x="-20%" y="-20%" width="150%" height="160%"><feFlood flood-color="#000" flood-opacity=".38"/><feComposite in2="SourceAlpha" operator="in"/><feOffset dx="2" dy="4" result="s"/><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
-
-function eye(x, y, r, o = {}) {
-  const id = 'e' + (++uid), px = x + (o.dx || 0) * r * .35, py = y + (o.dy || 0) * r * .35;
-  let s = `<clipPath id="${id}"><circle cx="${x}" cy="${y}" r="${r}"/></clipPath>`
-    + `<circle cx="${x}" cy="${y}" r="${r}" fill="${o.sclera || '#ffffff'}"/>`
-    + `<circle cx="${px}" cy="${py}" r="${r * .48}" fill="#1a1a1a"/>`
-    + `<circle cx="${px + r * .15}" cy="${py - r * .18}" r="${r * .16}" fill="#ffffff"/>`;
-  if (o.lid) s += `<g clip-path="url(#${id})"><rect x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r * o.lid}" fill="${o.fur}"/>${ln(`M${x - r},${y - r + 2 * r * o.lid}H${x + r}`, THIN)}</g>`;
-  return s + `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${INK}" stroke-width="${THIN}"/>`;
-}
-
-// ---------- Köpfe ----------
-const HEADS = {
-  fuchs: c => S('path', { d: 'M-25,-6 L-29,-46 L-5,-24 Z' }, c.fur) + S('path', { d: 'M25,-6 L29,-46 L5,-24 Z' }, c.fur)
-    + S('path', { d: 'M-22,-14 L-25,-37 L-11,-23 Z', sw: 1.5 }, '#3a2320') + S('path', { d: 'M22,-14 L25,-37 L11,-23 Z', sw: 1.5 }, '#3a2320')
-    + S('ellipse', { cx: 0, cy: 0, rx: 28, ry: 25 }, c.fur)
-    + S('path', { d: 'M-27,4 Q-16,27 0,25 Q16,27 27,4 Q14,13 0,11 Q-14,13 -27,4 Z', sw: 2 }, '#fff4e6')
-    + S('ellipse', { cx: 0, cy: 13, rx: 12, ry: 8, sw: 2 }, '#fff4e6')
-    + S('ellipse', { cx: 0, cy: 8, rx: 5, ry: 3.6, sw: 1.5 }, '#1a1a1a')
-    + eye(-11, -6, 7, { dx: .6, dy: .5, fur: c.fur }) + eye(11, -6, 8.5, { dx: -.3, dy: .6, fur: c.fur })
-    + ln('M-5,17 Q0,21 5,17', THIN),
-  gorilla: c => {
-    const face = '#a08a7a';
-    return S('circle', { cx: -29, cy: 0, r: 7.5 }, c.fur) + S('circle', { cx: 29, cy: 0, r: 7.5 }, c.fur)
-      + S('ellipse', { cx: 0, cy: -3, rx: 30, ry: 28 }, c.fur)
-      + S('path', { d: 'M-21,-6 Q-24,22 0,24 Q24,22 21,-6 Q10,-2 0,-8 Q-10,-2 -21,-6 Z', sw: 2.2 }, face)
-      + S('path', { d: 'M-24,-9 Q-12,-20 0,-12 Q12,-20 24,-9 Q12,-12 0,-6 Q-12,-12 -24,-9 Z', sw: 2 }, darken(c.fur, .15))
-      + eye(-9, -1, 5.5, { lid: .5, dy: .4, fur: face }) + eye(9, -1, 6.5, { lid: .55, dy: .4, fur: face })
-      + `<ellipse cx="-4" cy="10" rx="2.6" ry="2" fill="${INK}"/><ellipse cx="4" cy="10" rx="2.6" ry="2" fill="${INK}"/>`
-      + ln('M-10,18 Q0,15 10,18', THIN * 1.2)
-      + `<g transform="rotate(14 6 17)">${S('rect', { x: 6, y: 15, width: 20, height: 4.5, rx: 1, sw: 1.5 }, '#f5f0e6')}${S('rect', { x: 23, y: 15, width: 4, height: 4.5, sw: 1.5 }, '#ff6b1a')}</g>`
-      + ln('M30,12 q6,-7 0,-13 q-6,-7 2,-15', 2.5, '#c9c9c9', 'opacity=".7"');
-  },
-  hase: c => {
-    const ear = (x, r) => `<g transform="translate(${x},-22) rotate(${r})">${S('ellipse', { cx: 0, cy: -20, rx: 7.5, ry: 21 }, c.fur)}${S('ellipse', { cx: 0, cy: -19, rx: 3.6, ry: 14, sw: 1.2 }, '#f4a6b8')}</g>`;
-    return ear(-10, -14) + ear(11, 24)
-      + S('circle', { cx: 0, cy: 0, r: 25 }, c.fur)
-      + S('rect', { x: -26, y: -20, width: 52, height: 7, rx: 2, sw: 2 }, '#e63946')
-      + S('path', { d: 'M24,-17 L37,-23 L33,-13 Z M24,-15 L35,-7 L28,-5 Z', sw: 1.5 }, '#e63946')
-      + S('ellipse', { cx: -6, cy: 10, rx: 8, ry: 6, sw: 1.8 }, '#ffffff') + S('ellipse', { cx: 6, cy: 10, rx: 8, ry: 6, sw: 1.8 }, '#ffffff')
-      + S('path', { d: 'M-3,4 L3,4 L0,8 Z', sw: 1 }, '#f06292')
-      + S('rect', { x: -4, y: 14, width: 8, height: 7, rx: 1, sw: 1.5 }, '#ffffff') + ln('M0,14 V21', 1)
-      + eye(-10, -3, 5.5, { dy: .3, fur: c.fur }) + eye(10, -3, 5.5, { dy: .3, fur: c.fur })
-      + ln('M-18,-12 L-5,-6', 4) + ln('M18,-12 L5,-6', 4);
-  },
-  pinguin: () => S('circle', { cx: 0, cy: 0, r: 27 }, '#262a36')
-    + S('path', { d: 'M0,-10 C-8,-19 -22,-14 -21,2 C-20,18 -8,23 0,23 C8,23 20,18 21,2 C22,-14 8,-19 0,-10 Z', sw: 2 }, '#f5f5f5')
-    + eye(-8, -1, 5.5, { dx: .3, fur: '#f5f5f5' }) + eye(8, -1, 5, { dx: .3, fur: '#f5f5f5' })
-    + S('path', { d: 'M-8,8 Q0,5 8,8 L0,18 Z', sw: 2 }, '#f4a020')
-    + S('path', { d: 'M-26,-12 Q0,-30 26,-12 L33,-5 Q0,-20 -33,-5 Z', sw: 2 }, '#2a9d5c'),
-};
-
-// ---------- Oberkörper ----------
-const torso = col => S('path', { d: 'M-42,84 C-42,46 -28,26 0,26 C28,26 42,46 42,84 Z' }, col);
-const stains = pts => pts.map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * .75}" fill="#a07838" opacity=".5"/>`).join('');
-const BODIES = {
-  feinripp: c => torso(c.fur) + S('path', { d: 'M-25,84 L-22,44 Q-17,34 -12,31 Q0,48 12,31 Q17,34 22,44 L25,84 Z' }, '#ece8dc') + stains([[-8, 52, 5], [10, 64, 3.5], [-12, 70, 2.5]]),
-  muskel: c => torso(c.fur) + S('path', { d: 'M-25,84 L-22,44 Q-17,34 -12,31 Q0,46 12,31 Q17,34 22,44 L25,84 Z' }, '#3d405b') + ln('M-10,54 Q0,62 10,54', 1.5, '#ffffff', 'opacity=".5"'),
-  hoodie: c => torso(c.shirt) + S('path', { d: 'M-20,30 Q0,46 20,30 Q12,40 0,42 Q-12,40 -20,30 Z', sw: 2 }, darken(c.shirt, .22))
-    + ln('M-6,42 L-8,60 M6,42 L8,60', 2.2, '#ffffff') + S('path', { d: 'M-16,66 L16,66 L13,80 L-13,80 Z', sw: 2 }, darken(c.shirt, .12)),
-  smoking: () => torso('#262a36') + S('path', { d: 'M-13,27 L0,62 L13,27 Z', sw: 2 }, '#f5f5f5')
-    + S('path', { d: 'M0,34 L-12,28 L-12,40 Z M0,34 L12,28 L12,40 Z', sw: 2 }, '#e63946') + S('circle', { cx: 0, cy: 34, r: 3, sw: 1.5 }, '#e63946'),
-};
-
-const FIGUREN = {
-  joe: { kind: 'gorilla', body: 'feinripp', fur: '#4a4654' },
-  du: { kind: 'fuchs', body: 'hoodie', fur: '#e8772e', shirt: '#3a86ff' },
-  rudi: { kind: 'hase', body: 'muskel', fur: '#d7d2cc' },
-  dealer: { kind: 'pinguin', body: 'smoking' },
-};
-
-function bust(f, name, x, y, s, extra = '') {
-  const w = Math.max(54, name.length * 7.2 + 16);
-  const plate = name ? `<rect x="${-w / 2}" y="54" width="${w}" height="19" rx="9.5" fill="${T.plate}" stroke="${INK}" stroke-width="${THIN}"/>` + txt(0, 68, name, 11, INK) : '';
-  return `<g transform="translate(${x},${y}) scale(${s})">${fx(BODIES[f.body](f) + HEADS[f.kind](f))}${plate}${extra}</g>`;
-}
 // Sprechblase über dem Kopf, bei Plätzen rechts nach links gedreht
 const bubble = (t, links) => `<g transform="translate(${links ? -30 : 30},-44) rotate(${links ? 8 : -8})">${S('ellipse', { cx: 0, cy: 0, rx: Math.max(24, t.length * 4.6 + 8), ry: 12, sw: 2 }, '#ffffff')}${txt(0, 4, t, 10, INK)}</g>`;
 
@@ -110,13 +20,16 @@ let quelle = [0, 0], zaehlwerte = true;
 // Marke links unter der Ecke mit dem Hi-Lo-Wert. Der linke Streifen bleibt sichtbar, wenn die nächste Karte darüber liegt.
 const ZW = { 1: ['+1', '#2a9d5c'], 0: ['0', '#8d99ae'], '-1': ['−1', '#e63946'] };
 const zaehlMarke = r => { const [t, f] = ZW[hiLo(r)]; return `<circle cx="${-CW / 2 + 8}" cy="9" r="7.5" fill="${f}" stroke="${INK}" stroke-width="1.2"/>` + `<text x="${-CW / 2 + 8}" y="12" font-family="system-ui, sans-serif" font-weight="800" font-size="8.5" fill="#fff" text-anchor="middle">${t}</text>`; };
-function card(k, x, y, sc = 1) {
-  const rot = (k.id * 37) % 9 - 4, col = k.s === '♥' || k.s === '♦' ? T.red : INK;
-  const g = `<g transform="translate(${x},${y}) rotate(${rot}) scale(${sc})" filter="url(#fx)">`
+export function karteSvg(k, x, y, sc = 1, rot = (k.id * 37) % 9 - 4, marke = zaehlwerte) {
+  const col = k.s === '♥' || k.s === '♦' ? T.red : INK;
+  return `<g transform="translate(${x},${y}) rotate(${rot}) scale(${sc})" filter="url(#fx)">`
     + `<rect x="${-CW / 2}" y="${-CH / 2}" width="${CW}" height="${CH}" rx="${CW * .12}" fill="${T.card}" stroke="${INK}" stroke-width="2.2"/>`
     + `<text x="${-CW / 2 + 4}" y="${-CH / 2 + 14}" font-family="${FONT}, sans-serif" font-size="${k.r === '10' ? 11 : 13}" fill="${col}">${k.r}</text>`
     + `<text x="${-CW / 2 + 4}" y="${-CH / 2 + 25}" font-size="10" fill="${col}">${k.s}</text>`
-    + txt(3, CH * .3, k.s, 24, col) + (zaehlwerte ? zaehlMarke(k.r) : '') + '</g>';
+    + txt(3, CH * .3, k.s, 24, col) + (marke ? zaehlMarke(k.r) : '') + '</g>';
+}
+function card(k, x, y, sc = 1) {
+  const g = karteSvg(k, x, y, sc);
   const jetzt = performance.now();
   if (!gesehen.has(k.id)) gesehen.set(k.id, jetzt);
   const alt = jetzt - gesehen.get(k.id);
@@ -125,7 +38,7 @@ function card(k, x, y, sc = 1) {
 }
 function chipStack(x, y, betrag) {
   const l = [];
-  for (const c of [100, 25, 5, 1]) while (betrag >= c && l.length < 12) { l.push(c); betrag -= c; }
+  for (const c of [5000, 1000, 500, 100, 25, 5, 1]) while (betrag >= c && l.length < 12) { l.push(c); betrag -= c; }
   return fx(l.map((v, i) => {
     const cy = y - i * 4.2, col = CHIPC[v];
     return S('ellipse', { cx: x, cy: cy + 2, rx: 15, ry: 6.5, sw: 2 }, darken(col, .25)) + S('ellipse', { cx: x, cy, rx: 15, ry: 6.5, sw: 2 }, col)
@@ -168,50 +81,65 @@ function tray(L, t) {
 }
 
 // ---------- Hintergrund und Tisch ----------
-function bg(L) {
-  let s = `<rect x="-600" y="-600" width="${L.W + 1200}" height="${L.H + 1200}" fill="#4a2e1b"/>`;
-  for (let x = -600; x < L.W + 600; x += 44) s += `<line x1="${x}" y1="-600" x2="${x}" y2="${L.H + 600}" stroke="#3a2313" stroke-width="3"/>`;
-  return s + `<rect x="-600" y="${L.top - 34}" width="${L.W + 1200}" height="9" fill="#2e1b0e"/>`;
+// Je besser der Tisch, desto edler der Raum: Holz im Hinterzimmer, Tapete im Club, Samt im Casino
+const WAND = { 1: ['#4a2e1b', '#3a2313'], 2: ['#2b2d42', '#24263a'], 3: ['#5c1a2b', '#4d1524'], 4: ['#2a1f45', '#231a3a'], 5: ['#0b132b', '#121c3d'] };
+function bg(L, nr) {
+  const [a, b] = WAND[nr] || WAND[1];
+  let s = `<rect x="-600" y="-600" width="${L.W + 1200}" height="${L.H + 1200}" fill="${a}"/>`;
+  for (let x = -600; x < L.W + 600; x += 44) s += `<line x1="${x}" y1="-600" x2="${x}" y2="${L.H + 600}" stroke="${b}" stroke-width="${nr === 1 ? 3 : 10}"/>`;
+  if (nr === 5) for (let i = 0; i < 40; i++) s += `<circle cx="${(i * 97) % L.W}" cy="${(i * 53) % (L.top - 30)}" r="${1 + (i % 3) * .5}" fill="#fff" opacity=".5"/>`;
+  return s + `<rect x="-600" y="${L.top - 34}" width="${L.W + 1200}" height="9" fill="${darken(a, .4)}"/>`;
 }
-function table(L, r) {
-  const cx = L.W / 2, t = L.top, R = 16;
+function table(L, r, nr, filz) {
+  const cx = L.W / 2, t = L.top, R = 16, rail = nr >= 3 ? '#3b2416' : T.rail;
   const arc = (rx, ry) => `M${cx - rx},${t} A${rx},${ry} 0 0,0 ${cx + rx},${t}`;
   let defs = '';
-  let s = `<path d="${arc(L.rx + R, L.ry + R)} Z" fill="${T.rail}" stroke="${INK}" stroke-width="4"/><path d="${arc(L.rx + R / 2, L.ry + R / 2)}" fill="none" stroke="${lighten(T.rail, .25)}" stroke-width="3" opacity=".6"/>`
-    + `<path d="${arc(L.rx, L.ry)} Z" fill="${T.felt}" stroke="${INK}" stroke-width="3"/>`;
+  let s = `<path d="${arc(L.rx + R, L.ry + R)} Z" fill="${rail}" stroke="${INK}" stroke-width="4"/><path d="${arc(L.rx + R / 2, L.ry + R / 2)}" fill="none" stroke="${nr >= 4 ? '#d4af37' : lighten(rail, .25)}" stroke-width="3" opacity=".6"/>`
+    + `<path d="${arc(L.rx, L.ry)} Z" fill="${filz}" stroke="${INK}" stroke-width="3"/>`;
   const [ki, kr, km] = L.arcs;
   defs += `<path id="tI" d="${arc(L.rx * ki, L.ry * ki)}"/><path id="tR" d="${arc(L.rx * kr, L.ry * kr)}"/><path id="tM" d="${arc(L.rx * km, L.ry * km)}"/>`;
   const on = (id, size, str, extra = '') => `<text font-family="${FONT}, sans-serif" font-size="${size}" fill="${T.feltText}" letter-spacing="1.5" ${extra}><textPath href="#${id}" startOffset="50%" text-anchor="middle">${str}</textPath></text>`;
+  const limit = r.max === Infinity ? `AB ${r.min.toLocaleString('de-DE')} € · OHNE LIMIT` : `${r.min.toLocaleString('de-DE')} – ${r.max.toLocaleString('de-DE')} €`;
   s += `<path d="${arc(L.rx * ki + 5, L.ry * ki + 5)}" fill="none" stroke="${T.feltText}" stroke-width="1.5" opacity=".45"/>`
     + `<path d="${arc(L.rx * ki - 16, L.ry * ki - 16)}" fill="none" stroke="${T.feltText}" stroke-width="1.5" opacity=".45"/>`
     + on('tI', L.fs[0], 'VERSICHERUNG ZAHLT 2 ZU 1', 'opacity=".85"')
     + on('tR', L.fs[1], 'DEALER STEHT AUF SOFT 17', 'opacity=".7"')
     + on('tM', L.fs[2], 'BLACKJACK ZAHLT 3 ZU 2')
-    + txt(cx, t + 13, `${r.name.toUpperCase()} · ${r.min} – ${r.max} €`, 9, T.feltText, 'opacity=".7" letter-spacing="1"');
-  // Bierrand und Brandloch – es ist halt das Hinterzimmer
-  const bx = cx + L.rx * .42, by = t + L.ry * .3;
-  s += `<circle cx="${bx}" cy="${by}" r="13" fill="none" stroke="#3b2410" stroke-width="3" opacity=".25"/><circle cx="${bx + 4}" cy="${by + 2}" r="11" fill="none" stroke="#3b2410" stroke-width="2" opacity=".15"/>`
-    + `<ellipse cx="${cx - L.rx * .36}" cy="${t + L.ry * .62}" rx="5" ry="3.5" fill="#1a0f08" opacity=".45"/>`;
+    + txt(cx, t + 13, `${r.name.toUpperCase()} · ${limit}`, 9, T.feltText, 'opacity=".7" letter-spacing="1"');
+  if (nr === 1) { // Bierrand und Brandloch – es ist halt das Hinterzimmer
+    const bx = cx + L.rx * .42, by = t + L.ry * .3;
+    s += `<circle cx="${bx}" cy="${by}" r="13" fill="none" stroke="#3b2410" stroke-width="3" opacity=".25"/><circle cx="${bx + 4}" cy="${by + 2}" r="11" fill="none" stroke="#3b2410" stroke-width="2" opacity=".15"/>`
+      + `<ellipse cx="${cx - L.rx * .36}" cy="${t + L.ry * .62}" rx="5" ry="3.5" fill="#1a0f08" opacity=".45"/>`;
+  }
   return { s, defs };
 }
-function lamp(L) {
+function lamp(L, nr) {
   const cx = L.W / 2;
+  if (nr >= 3) { // Kronleuchter
+    return `<ellipse cx="${cx}" cy="${L.top + L.ry * .35}" rx="${L.rx * .8}" ry="${L.ry * .55}" fill="#ffe9a8" opacity=".07"/>`
+      + `<line x1="${cx}" y1="-600" x2="${cx}" y2="0" stroke="${INK}" stroke-width="3"/>`
+      + S('path', { d: `M${cx - 34},8 Q${cx},-6 ${cx + 34},8 L${cx + 26},16 L${cx - 26},16 Z` }, '#d4af37')
+      + [-24, -12, 0, 12, 24].map(d => `<path d="M${cx + d},16 l-3,8 l3,5 l3,-5 Z" fill="#e0f7ff" stroke="${INK}" stroke-width="1"/>`).join('');
+  }
   return `<ellipse cx="${cx}" cy="${L.top + L.ry * .35}" rx="${L.rx * .8}" ry="${L.ry * .55}" fill="#ffe9a8" opacity=".09"/>`
     + `<line x1="${cx}" y1="-600" x2="${cx}" y2="4" stroke="${INK}" stroke-width="3"/>`
-    + S('path', { d: `M${cx - 28},22 L${cx - 14},2 L${cx + 14},2 L${cx + 28},22 Z` }, '#2a9d5c')
+    + S('path', { d: `M${cx - 28},22 L${cx - 14},2 L${cx + 14},2 L${cx + 28},22 Z` }, nr === 2 ? '#c1121f' : '#2a9d5c')
     + `<ellipse cx="${cx}" cy="23" rx="12" ry="4" fill="#fff6c8"/>`;
 }
 
-// ---------- Aufbau je nach Ausrichtung ----------
+// ---------- Aufbau je nach Ausrichtung und Zahl der Plätze ----------
 // Plätze von rechts nach links: Der Dealer teilt von seiner linken Seite aus.
-function lay() {
-  if (innerWidth <= innerHeight) return {
+function lay(n) {
+  const hoch = innerWidth <= innerHeight, fuenf = n > 3;
+  if (hoch) return {
     W: 400, H: 600, top: 120, rx: 230, ry: 330, dealer: [200, 80], dk: [200, 172], shoe: [336, 160], tray: [52, 160],
-    seats: [[338, 392], [200, 476], [62, 392]], bs: .95, k: [.26, .12], arcs: [.4, .48, .58], fs: [10, 8, 12], fokus: [16, 24, 384, 455],
+    seats: fuenf ? [[346, 346], [284, 430], [200, 476], [116, 430], [54, 346]] : [[338, 392], [200, 476], [62, 392]],
+    bs: fuenf ? .78 : .95, ks: fuenf ? .8 : 1, k: [.26, .12], arcs: [.4, .48, .58], fs: [10, 8, 12], fokus: fuenf ? [0, 24, 400, 455] : [16, 24, 384, 455],
   };
   return {
     W: 800, H: 420, top: 104, rx: 440, ry: 270, dealer: [400, 64], dk: [400, 158], shoe: [655, 142], tray: [145, 142],
-    seats: [[630, 300], [400, 350], [170, 300]], bs: .82, k: [.26, .1], arcs: [.36, .43, .52], fs: [11, 9, 14], fokus: [95, 24, 705, 390],
+    seats: fuenf ? [[712, 250], [566, 318], [400, 350], [234, 318], [88, 250]] : [[630, 300], [400, 350], [170, 300]],
+    bs: fuenf ? .7 : .82, ks: fuenf ? .85 : 1, k: [.26, .1], arcs: [.36, .43, .52], fs: [11, 9, 14], fokus: fuenf ? [30, 24, 770, 390] : [95, 24, 705, 390],
   };
 }
 
@@ -250,13 +178,13 @@ function seat(L, t, i, ui) {
   const pt = k => [x + (C[0] - x) * k, y + (C[1] - y) * k];
   const [cx, cy] = pt(L.k[0]), [bx, by] = pt(L.k[1]);
   let s = `<ellipse cx="${bx}" cy="${by}" rx="20" ry="11" fill="none" stroke="${T.feltText}" stroke-width="2" opacity=".55"/>`;
-  if (i === ui.du && (t.phase === 'setzen' || t.phase === 'fertig')) s += `<ellipse cx="${bx}" cy="${by}" rx="24" ry="14" fill="none" stroke="${T.acc}" stroke-width="3"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></ellipse>`;
+  if (ui.setzen?.includes(i)) s += `<ellipse cx="${bx}" cy="${by}" rx="24" ry="14" fill="none" stroke="${T.acc}" stroke-width="3"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></ellipse>`;
   s += chipStack(bx, by, p.haende.reduce((a, h) => a + h.einsatz, 0));
   if (p.versicherung) s += chipStack(bx + (x > C[0] ? -30 : 30), by - 12, p.versicherung);
-  const n = p.haende.length, sc = n > 2 ? .72 : n === 2 ? .86 : 1, sp = CW * sc + 12;
+  const n = p.haende.length, sc = L.ks * (n > 2 ? .72 : n === 2 ? .86 : 1), sp = CW * sc + 12;
   p.haende.forEach((h, j) => { s += handSvg(h, cx + (j - (n - 1) / 2) * sp, cy, sc, t.phase === 'spielen' && t.ap === i && t.ah === j); });
   const sprich = ui.sprech && ui.sprech.platz === i ? bubble(ui.sprech.text, x > C[0]) : '';
-  return { felt: s, bust: bust(FIGUREN[p.figur], p.name, x, y, L.bs, sprich) };
+  return { felt: s, bust: p.figur ? bust(p.figur, p.name, x, y, L.bs, sprich) : '' };
 }
 
 // Bildausschnitt: Der Fokus-Bereich (Dealer bis zu deinen Karten) füllt die Breite bzw. den freien Platz über den Knöpfen.
@@ -270,17 +198,16 @@ function ausschnitt(svg, L, verdeckt) {
   return `${(x0 + x1) / 2 - w / s / 2} ${y0 - rest * .3} ${w / s} ${h / s}`;
 }
 
-// Zeichnet den ganzen Tisch. ui: { du: Platz des Spielers, sprech: { platz, text }, verdeckt, zaehlwerte }
+// Zeichnet den ganzen Tisch. ui: { nr, filz, setzen: Plätze mit blinkendem Setzfeld, sprech: { platz, text }, verdeckt, zaehlwerte }
 export function zeichne(svg, t, ui) {
-  const L = lay();
-  uid = 0;
+  const L = lay(t.plaetze.length);
   zaehlwerte = ui.zaehlwerte !== false;
-  const tisch = table(L, t.regeln), schuh = shoe(L, t);
+  const tisch = table(L, t.regeln, ui.nr, ui.filz), schuh = shoe(L, t);
   const seats = t.plaetze.map((p, i) => seat(L, t, i, ui));
-  const body = bg(L)
-    + bust(FIGUREN.dealer, '', L.dealer[0], L.dealer[1], L.W > 500 ? .9 : 1)
-    + tisch.s + lamp(L) + schuh + tray(L, t)
+  const body = bg(L, ui.nr)
+    + bust(DEALER, '', L.dealer[0], L.dealer[1], L.W > 500 ? .9 : 1)
+    + tisch.s + lamp(L, ui.nr) + schuh + tray(L, t)
     + seats.map(s => s.felt).join('') + dealerSvg(L, t) + seats.map(s => s.bust).join('');
   svg.setAttribute('viewBox', ausschnitt(svg, L, ui.verdeckt || 0));
-  svg.innerHTML = `<defs>${FILTER}${tisch.defs}</defs>${body}`;
+  svg.innerHTML = `<defs>${tisch.defs}</defs>${body}`;
 }

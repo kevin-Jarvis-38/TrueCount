@@ -1,7 +1,7 @@
 // TrueCount – Spiellogik eines Blackjack-Tisches nach europäischen Regeln (keine Hole Card).
 // Reine Logik ohne Oberfläche, damit der Mehrspieler-Modus später darauf aufbauen kann.
 // Ablauf: setzen → start() → schritt() bis null (ein Mensch ist dran) bzw. 'abrechnung' → neueRunde().
-import { neuerSchuh, wert, punkte, zufall } from './karten.js';
+import { neuerSchuh, wert, punkte, zufall, hiLo } from './karten.js';
 import { basisZug } from './strategie.js';
 
 export const HINTERZIMMER = { name: 'Hinterzimmer', min: 5, max: 100, decks: 2, schnitt: .75, maxHaende: 4, bj: 1.5 };
@@ -9,15 +9,16 @@ export const HINTERZIMMER = { name: 'Hinterzimmer', min: 5, max: 100, decks: 2, 
 const neueHand = einsatz => ({ karten: [], einsatz, geteilt: false, asse: false, verdoppelt: false, aufgegeben: false, fertig: false, ergebnis: null, gewinn: 0 });
 // Blackjack nur mit den ersten zwei Karten, nicht nach einem Split
 export const istBJ = h => !h.geteilt && h.karten.length === 2 && wert(h.karten).summe === 21;
-const ZUG = { H: 'karte', S: 'bleiben', D: 'verdoppeln', P: 'teilen', R: 'aufgeben' };
+export const ZUG = { H: 'karte', S: 'bleiben', D: 'verdoppeln', P: 'teilen', R: 'aufgeben' };
 
 export class Tisch {
-  // plaetze: [{ name, art: 'mensch' | 'npc', geld, stil, fehler, versichert }]
+  // plaetze: [{ name, art: 'mensch' | 'npc', konto: { geld }, stil, fehler, versichert }]
+  // Mehrere Plätze können sich ein Konto teilen (mehrere Hände eines Spielers).
   constructor(regeln, plaetze, seed) {
-    this.regeln = regeln;
+    this.regeln = { maxHaende: 4, bj: 1.5, ...regeln };
     this.rnd = zufall(seed);
     this.schuhNr = 0;
-    this.plaetze = plaetze.map(p => ({ geld: Infinity, ...p, einsatz: 0, haende: [], versicherung: 0, gewinn: 0 }));
+    this.plaetze = plaetze.map(p => ({ ...p, konto: p.konto || { geld: Infinity }, einsatz: 0, haende: [], versicherung: 0, gewinn: 0 }));
     this.dealer = [];
     this.phase = 'setzen';
     this.mischen();
@@ -27,29 +28,38 @@ export class Tisch {
     this.schuh = neuerSchuh(this.regeln.decks, this.regeln.schnitt, this.rnd, ++this.schuhNr);
     this.schuh.pos = 1; // die erste Karte wird verbrannt und kommt verdeckt in die Ablage
     this.ablage = 1;
+    this.rc = 0; // laufender Count aller offen gesehenen Karten
   }
 
   ziehen() {
     if (this.schuh.pos >= this.schuh.karten.length) this.ablageMischen();
-    return this.schuh.karten[this.schuh.pos++];
+    const k = this.schuh.karten[this.schuh.pos++];
+    this.rc += hiLo(k.r);
+    return k;
   }
 
   // Notfall (vor allem bei 1 Deck): Der Schuh ist mitten in der Runde leer. Wie im Casino wird die Ablage gemischt,
   // also alle Karten außer denen auf dem Tisch. Nach der Runde kommt ein ganz neuer Schuh.
   ablageMischen() {
-    const weg = [...this.dealer, ...this.alleHaende().flatMap(h => h.karten)].map(k => k.r + k.s);
+    const aufTisch = [...this.dealer, ...this.alleHaende().flatMap(h => h.karten)], weg = aufTisch.map(k => k.r + k.s);
     this.schuh = neuerSchuh(this.regeln.decks, this.regeln.schnitt, this.rnd, ++this.schuhNr);
     this.schuh.karten = this.schuh.karten.filter(k => { const i = weg.indexOf(k.r + k.s); return i < 0 || !weg.splice(i, 1); });
     this.schuh.schnitt = 0;
     this.ablage = 0;
+    this.rc = aufTisch.reduce((n, k) => n + hiLo(k.r), 0);
     this.gemischt = true;
   }
+
+  // Restliche Decks im Schuh (genau) und der echte True Count (Richtung null abgerundet)
+  restDecks() { return (this.schuh.karten.length - this.schuh.pos) / 52; }
+  trueCount() { return Math.trunc(this.rc / Math.max(this.restDecks(), .25)); }
+  gespielt() { return this.schuh.pos; }
 
   alleHaende() { return this.plaetze.flatMap(p => p.haende); }
 
   setzen(i, betrag) {
     const p = this.plaetze[i], r = this.regeln;
-    if (this.phase !== 'setzen' || betrag < r.min || betrag > r.max || betrag > p.geld) return false;
+    if (this.phase !== 'setzen' || (betrag && (betrag < r.min || betrag > r.max || betrag > p.konto.geld))) return false;
     p.einsatz = betrag;
     return true;
   }
@@ -58,7 +68,7 @@ export class Tisch {
     if (this.phase !== 'setzen' || !this.plaetze.some(p => p.art === 'mensch' && p.einsatz)) return false;
     for (const p of this.plaetze) {
       if (p.art === 'npc') p.einsatz = this.npcEinsatz(p);
-      p.geld -= p.einsatz;
+      p.konto.geld -= p.einsatz;
       p.haende = p.einsatz ? [neueHand(p.einsatz)] : [];
       p.versicherung = 0;
       p.gewinn = 0;
@@ -108,7 +118,7 @@ export class Tisch {
       if (!p.haende.length) continue;
       if (p.art === 'mensch') { p.versicherung = null; continue; } // null = noch nicht entschieden
       p.versicherung = p.versichert && this.rnd() < p.versichert ? p.einsatz / 2 : 0;
-      p.geld -= p.versicherung;
+      p.konto.geld -= p.versicherung;
     }
     this.versicherungFertig();
   }
@@ -116,8 +126,8 @@ export class Tisch {
   versichern(i, ja) {
     const p = this.plaetze[i], preis = p.einsatz / 2;
     if (this.phase !== 'versicherung' || p.versicherung !== null) return false;
-    p.versicherung = ja && p.geld >= preis ? preis : 0;
-    p.geld -= p.versicherung;
+    p.versicherung = ja && p.konto.geld >= preis ? preis : 0;
+    p.konto.geld -= p.versicherung;
     this.versicherungFertig();
     return true;
   }
@@ -153,7 +163,7 @@ export class Tisch {
   moeglich() {
     const p = this.plaetze[this.ap], h = p?.haende[this.ah];
     if (this.phase !== 'spielen' || !h || h.fertig || h.karten.length < 2) return {};
-    const zwei = h.karten.length === 2, geld = p.geld >= h.einsatz;
+    const zwei = h.karten.length === 2, geld = p.konto.geld >= h.einsatz;
     return {
       karte: true,
       bleiben: true,
@@ -176,12 +186,12 @@ export class Tisch {
     else if (a === 'bleiben') h.fertig = true;
     else if (a === 'aufgeben') h.aufgegeben = h.fertig = true;
     else if (a === 'verdoppeln') {
-      p.geld -= h.einsatz;
+      p.konto.geld -= h.einsatz;
       h.einsatz *= 2;
       h.verdoppelt = h.fertig = true;
       h.karten.push(this.ziehen());
     } else if (a === 'teilen') {
-      p.geld -= h.einsatz;
+      p.konto.geld -= h.einsatz;
       const neu = neueHand(h.einsatz);
       neu.karten.push(h.karten.pop());
       h.geteilt = neu.geteilt = true;
@@ -193,8 +203,8 @@ export class Tisch {
   }
 
   npcEinsatz(p) {
-    const r = this.regeln, [a, b] = p.stil === 'wild' ? [25, r.max] : [r.min, 25];
-    return Math.round((a + this.rnd() * (b - a)) / 5) * 5;
+    const r = this.regeln, max = Math.min(r.max, r.min * 20), [a, b] = p.stil === 'wild' ? [r.min * 4, max] : [r.min, r.min * 5];
+    return Math.round((a + this.rnd() * (b - a)) / r.min) * r.min;
   }
 
   npcZug(p, h) {
@@ -213,7 +223,7 @@ export class Tisch {
     for (const p of this.plaetze) {
       if (p.versicherung) {
         const zurueck = dBJ ? p.versicherung * 3 : 0;
-        p.geld += zurueck;
+        p.konto.geld += zurueck;
         p.gewinn += zurueck - p.versicherung;
       }
       for (const h of p.haende) {
@@ -228,10 +238,11 @@ export class Tisch {
           : s === d ? ['push', h.einsatz] : ['verloren', 0];
         h.ergebnis = ergebnis;
         h.gewinn = zurueck - h.einsatz;
-        p.geld += zurueck;
+        p.konto.geld += zurueck;
         p.gewinn += h.gewinn;
       }
     }
+    this.dealerBJ = dBJ;
     this.phase = 'fertig';
   }
 
