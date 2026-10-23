@@ -1,6 +1,6 @@
 // TrueCount – Service Worker: alles offline verfügbar.
 // Bei jeder Änderung CACHE hochzählen, sonst sehen installierte Apps die neue Version nicht.
-const CACHE = 'truecount-3';
+const CACHE = 'truecount-4';
 const DATEIEN = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/ui.js', 'js/karten.js', 'js/strategie.js', 'js/tisch.js', 'js/tische.js',

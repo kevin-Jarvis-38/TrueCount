@@ -86,7 +86,7 @@ function figurWahl() {
     + `<div class="wahl">${Object.entries(TIERE).map(([k, t]) => `<button class="btn aux ${k === wahl.tier ? 'an' : ''}" data-tier="${k}">${t.name}</button>`).join('')}</div>`
     + `<div class="farben">${TIERE[wahl.tier].farben.map(c => `<button class="farbe ${c === wahl.farbe ? 'an' : ''}" style="--c:${c}" data-farbe="${c}" aria-label="Farbe"></button>`).join('')}</div>`
     + `<div class="wahl">${pr.STARTER.map(id => `<button class="btn aux ${id === wahl.outfit ? 'an' : ''}" data-outfit="${id}">${OUTFITS.find(o => o.id === id).name}</button>`).join('')}</div>`
-    + `<button class="btn hit voll" data-wahl="ok">Los geht's!</button>`, { fest: true });
+    + `<button class="btn hit voll" data-wahl="ok">Los geht's!</button>`, { fest: true, art: 'figur' });
 }
 
 // ---------- Tisch aufbauen ----------
@@ -494,7 +494,7 @@ function optZeichnen() {
     return `<div class="opt">${text}<button class="btn aux" data-o="${k}:-1">−</button><b>${w}</b><button class="btn aux" data-o="${k}:1">+</button></div>`;
   }).join('')
     + `<div class="opt">${'<span>Freestyle<br><small>Lehrer und Count-Fragen aus, einfach spielen</small></span>'}<button class="btn ${freestyle ? 'hit' : 'aux'} schalter" data-o="freestyle">${freestyle ? 'An' : 'Aus'}</button></div>`
-    + `<p>Ändern sich Decks oder Schnittkarte, mischt der Dealer sofort einen neuen Schuh.</p><button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: optFertig });
+    + `<p>Ändern sich Decks oder Schnittkarte, mischt der Dealer sofort einen neuen Schuh.</p><button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: optFertig, art: 'optionen' });
 }
 function option(o) {
   const [k, d] = o.split(':'), r = +d, grenz = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -550,7 +550,7 @@ function shopSheet() {
   sheet(`<h2>🛍️ Shop</h2><p>Bezahlt wird mit Chips – aber nur mit dem, was über 1.000 € liegt. Guthaben: <b>${fmt(P.geld)}</b>. Umfärben und Umziehen geht im Profil.</p>`
     + tabs(shopTab, [['outfits', 'Outfits'], ['acc', 'Accessoires']])
     + (shopTab === 'outfits' ? `<div class="waren">${OUTFITS.map(it => ware(it, true)).join('')}</div>` : nachFach(ACCESSOIRES, true))
-    + `<button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: lobbyZeigen });
+    + `<button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: lobbyZeigen, art: 'shop-' + shopTab });
 }
 
 // ---------- Profil: Übersicht, Kleiderschrank und Erfolge ----------
@@ -590,7 +590,7 @@ function profilSheet(tab = profilTab) {
       + `<button class="btn dbl voll" data-l="shop">🛍️ Zum Shop</button>`;
   } else inhalt = `<p>${n} von ${pr.ERFOLGE.length} geschafft. Der Balken zeigt, wie weit du bei jedem Erfolg bist.</p>` + erfolgeHtml();
   sheet(`<h2>👤 Dein Profil</h2>` + tabs(tab, [['ich', 'Übersicht'], ['schrank', 'Charakter'], ['erfolge', 'Erfolge']]).replaceAll('data-tab=', 'data-ptab=')
-    + inhalt + `<button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: lobbyZeigen });
+    + inhalt + `<button class="btn hit voll" data-zu="1">Fertig</button>`, { zu: lobbyZeigen, art: 'profil-' + tab });
 }
 const kleidungNeu = () => ansicht === 'profil' ? profilSheet() : shopSheet();
 

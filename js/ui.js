@@ -27,16 +27,19 @@ function naechste() {
 }
 
 // ---------- Einblendung (immer nur eine gleichzeitig) ----------
-let beimSchliessen = null;
+let beimSchliessen = null, sheetArt = null;
 // fest = schließt nicht beim Tippen daneben, klar = Tisch bleibt gut sichtbar (z. B. für die Count-Frage)
-export function sheet(html, { fest = false, klar = false, zu = null } = {}) {
-  const o = $('#ov'), s = $('#sheet');
+// art = welche Einblendung das ist. Wird dieselbe neu gezeichnet (z. B. nach einem Tipp in den Optionen oder im Schrank),
+// bleibt sie ruhig stehen: kein neues Hereinfahren, und die Liste springt nicht nach oben.
+export function sheet(html, { fest = false, klar = false, zu = null, art = null } = {}) {
+  const o = $('#ov'), s = $('#sheet'), gleich = o.classList.contains('open') && art && art === sheetArt, y = s.scrollTop;
   s.innerHTML = html;
   o.classList.toggle('fest', fest);
   o.classList.toggle('klar', klar);
   o.classList.add('open');
-  s.scrollTop = 0;
-  s.classList.remove('hoch'); void s.offsetWidth; s.classList.add('hoch');
+  s.scrollTop = gleich ? y : 0;
+  if (!gleich) { s.classList.remove('hoch'); void s.offsetWidth; s.classList.add('hoch'); }
+  sheetArt = art;
   beimSchliessen = zu;
 }
 export function sheetZu() {
