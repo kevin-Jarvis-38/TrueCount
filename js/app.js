@@ -49,7 +49,9 @@ function hinweis() {
 }
 
 function render() {
-  zeichne($('#scene'), tisch, { du: DU, sprech });
+  // hochkant liegen die Knöpfe über dem unteren Teil der Szene
+  const verdeckt = innerWidth > innerHeight ? 0 : $('#stage').getBoundingClientRect().bottom - $('#aux').getBoundingClientRect().top;
+  zeichne($('#scene'), tisch, { du: DU, sprech, verdeckt });
   const p = ich(), zw = zwischenRunden(), m = tisch.ap === DU ? tisch.moeglich() : {};
   $('#app').dataset.modus = zw ? 'setzen' : 'zug';
   document.querySelectorAll('#main .z').forEach(b => { b.disabled = !m[b.dataset.a]; });

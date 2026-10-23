@@ -204,11 +204,11 @@ function lamp(L) {
 function lay() {
   if (innerWidth <= innerHeight) return {
     W: 400, H: 600, top: 120, rx: 230, ry: 330, dealer: [200, 80], dk: [200, 172], shoe: [336, 160], tray: [52, 160],
-    seats: [[338, 392], [200, 476], [62, 392]], bs: .95, k: [.26, .12], arcs: [.4, .48, .58], fs: [10, 8, 12],
+    seats: [[338, 392], [200, 476], [62, 392]], bs: .95, k: [.26, .12], arcs: [.4, .48, .58], fs: [10, 8, 12], fokus: [16, 24, 384, 455],
   };
   return {
     W: 800, H: 420, top: 104, rx: 440, ry: 270, dealer: [400, 64], dk: [400, 158], shoe: [655, 142], tray: [145, 142],
-    seats: [[630, 300], [400, 350], [170, 300]], bs: .82, k: [.26, .1], arcs: [.36, .43, .52], fs: [11, 9, 14],
+    seats: [[630, 300], [400, 350], [170, 300]], bs: .82, k: [.26, .1], arcs: [.36, .43, .52], fs: [11, 9, 14], fokus: [95, 24, 705, 390],
   };
 }
 
@@ -256,7 +256,18 @@ function seat(L, t, i, ui) {
   return { felt: s, bust: bust(FIGUREN[p.figur], p.name, x, y, L.bs, sprich) };
 }
 
-// Zeichnet den ganzen Tisch. ui: { du: Platz des Spielers, sprech: { platz, text } }
+// Bildausschnitt: Der Fokus-Bereich (Dealer bis zu deinen Karten) füllt die Breite bzw. den freien Platz über den Knöpfen.
+// Die Szene läuft hinter den Knöpfen weiter (verdeckt = Pixel unten), deine Figur verschwindet dort zur Hälfte.
+// Die Größe hängt nur von Bildschirm und Ausrichtung ab, deshalb zoomt nichts mehr.
+function ausschnitt(svg, L, verdeckt) {
+  const { width: w, height: h } = svg.getBoundingClientRect(), [x0, y0, x1, y1] = L.fokus;
+  if (!w || !h) return `0 0 ${L.W} ${L.H}`;
+  const frei = Math.max(h - verdeckt, 50), s = Math.min(w / (x1 - x0), frei / (y1 - y0));
+  const rest = frei / s - (y1 - y0);
+  return `${(x0 + x1) / 2 - w / s / 2} ${y0 - rest * .3} ${w / s} ${h / s}`;
+}
+
+// Zeichnet den ganzen Tisch. ui: { du: Platz des Spielers, sprech: { platz, text }, verdeckt }
 export function zeichne(svg, t, ui) {
   const L = lay();
   uid = 0;
@@ -266,6 +277,6 @@ export function zeichne(svg, t, ui) {
     + bust(FIGUREN.dealer, '', L.dealer[0], L.dealer[1], L.W > 500 ? .9 : 1)
     + tisch.s + lamp(L) + schuh + tray(L, t)
     + seats.map(s => s.felt).join('') + dealerSvg(L, t) + seats.map(s => s.bust).join('');
-  svg.setAttribute('viewBox', `0 0 ${L.W} ${L.H}`);
+  svg.setAttribute('viewBox', ausschnitt(svg, L, ui.verdeckt || 0));
   svg.innerHTML = `<defs>${FILTER}${tisch.defs}</defs>${body}`;
 }
