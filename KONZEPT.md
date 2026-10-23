@@ -21,7 +21,16 @@ Diese Datei ist der feste Stand, den der Nutzer und Claude gemeinsam festgelegt 
 - Verdoppeln ist auf jede Anfangshand erlaubt, auch nach einem Split. Splitten geht bis zu 4 Hände. Geteilte Asse bekommen je nur 1 Karte.
 - Versicherung (zahlt 2:1) und Surrender (halber Einsatz zurück) gibt es.
 - Der Schuh hat 1–8 Decks (einstellbar) und wird wie im Casino gemischt. Jede Karte gibt es pro Deck nur einmal.
-  Die Schnittkarte liegt einstellbar bei Standard 75 %.
+  Die Schnittkarte liegt einstellbar bei Standard 75 % (50–85 %).
+- Details aus Etappe 1:
+  - Die erste Karte jedes Schuhs wird verbrannt und kommt verdeckt in die Ablage.
+  - Ausgeteilt wird von rechts nach links (von der linken Seite des Dealers aus).
+  - Alle Zehnerwerte (10, B, D, K) dürfen untereinander geteilt werden. Asse werden nicht nachgeteilt.
+  - Surrender geht nur mit den ersten zwei Karten und nicht nach einem Split. Der halbe Einsatz kommt sicher zurück.
+  - Wird der Schuh mitten in einer Runde leer (bei 1 Deck möglich), wird die Ablage gemischt, danach kommt ein neuer Schuh.
+  - Im Hinterzimmer sind standardmäßig 2 Decks im Schuh.
+  - Hinterzimmer-Mitspieler: Rambo-Rudi (rechts, spielt wild: teilt alles, zieht bis 17) und
+    Crazy Joe (links, spielt Basisstrategie, macht betrunken Fehler und versichert manchmal).
 
 ## Zählen (das Herzstück)
 - Hi-Lo: 2–6 zählen +1, 7–9 zählen 0, 10/B/D/K/A zählen −1.
@@ -110,7 +119,17 @@ Diese Datei ist der feste Stand, den der Nutzer und Claude gemeinsam festgelegt 
 7. Icon („TC“ mit Ass und König), Installation auf dem Handy, Freunde testen
 8. Mehrspieler mit Firebase
 
+Stand: Etappe 0 fertig (Design A). Etappe 1 am 2026-10-23 gebaut, `index.html` ist jetzt das Spiel.
+
+## Aufbau
+- `js/karten.js`: Karten, Werte, Zufall mit Startwert, Schuh
+- `js/strategie.js`: Basisstrategie für diese Regeln (für die Mitspieler und den Lehrer in Etappe 2)
+- `js/tisch.js`: Spiellogik ohne Oberfläche (später auch die Grundlage für den Mehrspieler-Modus)
+- `js/szene.js`: zeichnet den Tisch als SVG, `js/app.js`: Bedienung und Spielstand (localStorage `truecount.v1`)
+- `test/sim.mjs`: spielt 200.000 Runden durch und prüft, dass kein Geld und keine Karte verloren geht
+
 ## Hinweise für die Entwicklung
+- Spiellogik testen: `MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD":/app -w /app node:22-alpine node test/sim.mjs`
 - Bei jeder Änderung die CACHE-Nummer im Service Worker erhöhen und die Dateien mit `cache:'reload'` holen (Erfahrung aus Workie).
 - Der Testserver läuft auf Port 8765, weil 8123 von Home Assistant belegt ist.
 - Push aus Claude Code: `GIT_TERMINAL_PROMPT=1` und `GCM_INTERACTIVE=always`. Commit-Nachrichten mit `git commit -F`.
